@@ -552,6 +552,8 @@ export class AuthService {
         role: orgUser.role,
         address: orgUser.organization.address,
         website: orgUser.organization.website,
+        phone: orgUser.organization.phone,
+        description: orgUser.organization.description,
       })),
     };
   }
