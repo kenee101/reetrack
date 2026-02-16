@@ -56,9 +56,11 @@ export class EmailService {
     const templates = {
       payment_success: this.paymentSuccessTemplate(context),
       payment_failed: this.paymentFailedTemplate(context),
+      payment_reminder: this.paymentReminderTemplate(context),
       subscription_created: this.subscriptionCreatedTemplate(context),
       subscription_expiring: this.subscriptionExpiringTemplate(context),
       subscription_expired: this.subscriptionExpiredTemplate(context),
+      renewal_failed: this.renewalFailedTemplate(context),
       invoice_created: this.invoiceCreatedTemplate(context),
       invoice_overdue: this.invoiceOverdueTemplate(context),
       welcome_email: this.welcomeEmailTemplate(context),
@@ -452,6 +454,109 @@ export class EmailService {
     `;
   }
 
+  private paymentReminderTemplate(context: any): string {
+    const {
+      memberName,
+      subscriptionName,
+      amount,
+      invoiceNumber,
+      paymentUrl,
+      dueDate,
+    } = context;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Payment Reminder - ${subscriptionName}</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { text-align: center; padding: 20px 0; border-bottom: 1px solid #eee; }
+          .content { padding: 20px 0; }
+          .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white !important;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 15px 0;
+          }
+          .footer { 
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #777;
+            text-align: center;
+          }
+          .details {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+          }
+          .detail-row {
+            display: flex;
+            margin-bottom: 8px;
+          }
+          .detail-label {
+            font-weight: bold;
+            width: 150px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>Payment Reminder</h2>
+          </div>
+          
+          <div class="content">
+            <p>Dear ${memberName},</p>
+            
+            <p>This is a friendly reminder that your payment for <strong>${subscriptionName}</strong> is due on <strong>${dueDate}</strong>.</p>
+            
+            <div class="details">
+              <div class="detail-row">
+                <div class="detail-label">Invoice Number:</div>
+                <div>${invoiceNumber}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Amount Due:</div>
+                <div><strong>${amount}</strong></div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Due Date:</div>
+                <div>${dueDate}</div>
+              </div>
+            </div>
+            
+            <p>To avoid any interruption to your service, please make the payment at your earliest convenience.</p>
+            
+            <div style="text-align: center; margin: 25px 0;">
+              <a href="${paymentUrl}" class="button">Pay Now</a>
+            </div>
+            
+            <p>If you've already made this payment, please disregard this reminder. It may take some time for our system to update.</p>
+            
+            <p>Thank you for your prompt attention to this matter.</p>
+            
+            <p>Best regards,<br>${this.configService.get('app.name')} Team</p>
+          </div>
+          
+          <div class="footer">
+            <p>This is an automated message. Please do not reply to this email.</p>
+            <p>If you have any questions, please contact our support team.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
   private paymentFailedTemplate(context: any): string {
     return `
       <!DOCTYPE html>
@@ -609,6 +714,165 @@ export class EmailService {
       </body>
       </html>
     `;
+  }
+
+  private renewalFailedTemplate(context: any): string {
+    const { memberName, subscriptionName, amount, paymentUrl, expiresAt } =
+      context;
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Subscription Renewal Failed - ${subscriptionName}</title>
+      <style>
+        body { 
+          font-family: 'Segoe UI', Arial, sans-serif; 
+          line-height: 1.6; 
+          color: #333; 
+          margin: 0;
+          padding: 0;
+          background-color: #f5f5f5;
+        }
+        .container { 
+          max-width: 600px; 
+          margin: 0 auto; 
+          background: #ffffff;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .header { 
+          background: #ff4444;
+          color: white; 
+          padding: 25px 20px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 24px;
+        }
+        .content { 
+          padding: 30px;
+          color: #444;
+        }
+        .button {
+          display: inline-block;
+          padding: 12px 30px;
+          background-color: #ff4444;
+          color: white !important;
+          text-decoration: none;
+          border-radius: 4px;
+          font-weight: bold;
+          margin: 20px 0;
+          text-align: center;
+        }
+        .alert-box {
+          background-color: #fff8f8;
+          border-left: 4px solid #ff4444;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 0 4px 4px 0;
+        }
+        .details {
+          background: #f9f9f9;
+          padding: 15px;
+          border-radius: 4px;
+          margin: 20px 0;
+        }
+        .detail-row {
+          display: flex;
+          margin-bottom: 10px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #eee;
+        }
+        .detail-row:last-child {
+          border-bottom: none;
+          margin-bottom: 0;
+          padding-bottom: 0;
+        }
+        .detail-label {
+          font-weight: 600;
+          width: 40%;
+          color: #666;
+        }
+        .detail-value {
+          width: 60%;
+          font-weight: 500;
+        }
+        .footer {
+          background: #f5f5f5;
+          padding: 20px;
+          text-align: center;
+          font-size: 12px;
+          color: #777;
+          border-top: 1px solid #eee;
+        }
+        .action-box {
+          text-align: center;
+          margin: 25px 0;
+        }
+        @media only screen and (max-width: 600px) {
+          .container {
+            width: 100% !important;
+            border-radius: 0;
+          }
+          .detail-row {
+            flex-direction: column;
+          }
+          .detail-label, .detail-value {
+            width: 100%;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Subscription Renewal Failed</h1>
+        </div>
+        
+        <div class="content">
+          <p>Hi ${memberName},</p>
+          
+          <div class="alert-box">
+            <p>We couldn't process the renewal payment for your <strong>${subscriptionName}</strong> subscription.</p>
+          </div>
+          
+          <div class="details">
+            <div class="detail-row">
+              <div class="detail-label">Subscription:</div>
+              <div class="detail-value">${subscriptionName}</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Amount Due:</div>
+              <div class="detail-value">${amount}</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Expiration Date:</div>
+              <div class="detail-value">${new Date(expiresAt).toLocaleDateString()}</div>
+            </div>
+          </div>
+          
+          <div class="action-box">
+            <p><strong>Action Required:</strong> Please update your payment method to avoid service interruption.</p>
+            <a href="${paymentUrl}" class="button">Update Payment Method</a>
+          </div>
+          
+          <p>If you've already updated your payment information, please ignore this message or contact our support team if you need assistance.</p>
+          
+          <p>Best regards,<br>The ${this.configService.get('app.name', 'ReeTrack')} Team</p>
+        </div>
+        
+        <div class="footer">
+          <p>This is an automated message. Please do not reply to this email.</p>
+          <p>Need help? Contact our support team at ${this.configService.get('SUPPORT_EMAIL') || 'hello@reetrack.com'}</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
   }
 
   private invoiceCreatedTemplate(context: any): string {

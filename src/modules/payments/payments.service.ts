@@ -201,6 +201,11 @@ export class PaymentsService {
 
     const savedPayment = await this.paymentRepository.save(payment);
 
+    const organization = await this.organizationRepository.findOne({
+      where: { id: organizationId },
+    });
+    const subaccount = organization?.paystack_subaccount_code;
+
     // Initialize Paystack transaction
     const amountInKobo = this.paystackService.convertToKobo(invoice.amount);
     const callbackUrl = `${this.configService.get('frontend.url')}/organization/dashboard`;
@@ -216,6 +221,7 @@ export class PaymentsService {
         ...initializePaymentDto.metadata,
       },
       callbackUrl,
+      subaccount,
     );
 
     if (!paystackResponse.status) {

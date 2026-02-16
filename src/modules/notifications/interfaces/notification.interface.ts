@@ -13,11 +13,13 @@ export interface SMSOptions {
 export enum NotificationType {
   PAYMENT_SUCCESS = 'payment_success',
   PAYMENT_FAILED = 'payment_failed',
+  PAYMENT_REMINDER = 'payment_reminder',
   SUBSCRIPTION_CREATED = 'subscription_created',
   SUBSCRIPTION_RENEWED = 'subscription_renewed',
   SUBSCRIPTION_EXPIRING = 'subscription_expiring',
   SUBSCRIPTION_EXPIRED = 'subscription_expired',
   SUBSCRIPTION_CANCELED = 'subscription_canceled',
+  RENEWAL_FAILED = 'renewal_failed',
   INVOICE_CREATED = 'invoice_created',
   INVOICE_OVERDUE = 'invoice_overdue',
   WELCOME_EMAIL = 'welcome_email',

@@ -355,20 +355,6 @@ export class NotificationsService {
     paymentUrl: string;
     expiresAt: Date;
   }) {
-    const emailHtml = `
-    <h2>Subscription Renewal Failed</h2>
-    <p>Hi ${data.memberName},</p>
-    <p>We couldn't renew your ${data.subscriptionName} subscription.</p>
-    <p><strong>Amount:</strong> ${data.currency} ${data.amount}</p>
-    <p><strong>Action Required:</strong></p>
-    <ul>
-      <li>Update your payment method</li>
-      <li>Or make a manual payment</li>
-    </ul>
-    <p>Your subscription will expire on ${data.expiresAt.toDateString()}</p>
-    <a href="${data.paymentUrl}">Update Payment Method</a>
-  `;
-
     await this.emailService.sendEmail({
       to: data.email,
       subject: `⚠️ Action Required: Subscription Renewal Failed - ${data.subscriptionName}`,
@@ -384,9 +370,8 @@ export class NotificationsService {
         paymentUrl: data.paymentUrl,
         expiresAt: data.expiresAt.toLocaleDateString(),
         supportEmail:
-          this.configService.get('SUPPORT_EMAIL') || 'support@reetrack.com',
+          this.configService.get('SUPPORT_EMAIL') || 'hello@reetrack.com',
       },
-      // html: emailHtml
     });
     this.logger.log(`Renewal failed notification sent to ${data.email}`);
     this.stats.emailsSent++;

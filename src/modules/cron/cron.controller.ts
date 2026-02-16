@@ -34,6 +34,6 @@ export class CronController {
   @Post('auto-renew')
   @ApiOperation({ summary: 'Manually trigger auto-renew' })
   async autoRenew() {
-    return this.cronService.manualAutoRenewSubscriptions();
+    return this.cronService.manualProcessRenewals();
   }
 }

@@ -313,7 +313,7 @@ export class WebhooksService {
 
     const payment = await this.paymentRepository.findOne({
       where: { provider_reference: data.reference },
-      relations: ['invoice', 'invoice.member_subscription', 'payer_user'],
+      relations: ['invoice.member_subscription', 'payer_user'],
     });
 
     if (!payment) {

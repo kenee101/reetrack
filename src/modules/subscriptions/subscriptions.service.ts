@@ -483,7 +483,7 @@ export class SubscriptionsService {
   ) {
     const subscription = await this.memberSubscriptionRepository.findOne({
       where: { id: subscriptionId, organization_id: organizationId },
-      relations: ['plan', 'member', 'organization'],
+      relations: ['plan', 'member.user', 'organization'],
     });
 
     if (!subscription) {
@@ -504,8 +504,9 @@ export class SubscriptionsService {
 
     subscription.started_at = newPeriodStart;
     subscription.expires_at = newPeriodEnd;
-    // subscription.status = SubscriptionStatus.ACTIVE
+    subscription.status = SubscriptionStatus.ACTIVE;
     await this.memberSubscriptionRepository.save(subscription);
+    // console.log(subscription);
 
     // Send success notification
     await this.notificationsService.sendSubscriptionRenewedNotification({
