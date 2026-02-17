@@ -22,10 +22,16 @@ import {
   ApiPropertyOptional,
 } from '@nestjs/swagger';
 import { Member } from '../../database/entities/member.entity';
-import { IsOptional, IsString, IsNotEmpty } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsNotEmpty,
+  IsDateString,
+} from 'class-validator';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { OrgRole } from 'src/common/enums/enums';
+import { Throttle } from '@nestjs/throttler';
 
 class SearchDto {
   @ApiPropertyOptional()
@@ -49,6 +55,14 @@ export class CheckInDto {
   @IsString()
   @IsNotEmpty()
   checkInCode: string;
+
+  @ApiPropertyOptional({
+    description: 'The check-in code',
+    example: 'A1B2C3',
+  })
+  @IsOptional()
+  @IsDateString()
+  expiresAt?: string;
 }
 
 @Controller('members')
@@ -113,17 +127,31 @@ export class MembersController {
     return this.membersService.getMemberOrgs(user.id);
   }
 
-  @Post('check-in')
+  @Post('/check-in')
+  @Throttle({ default: { limit: 1, ttl: 60 * 60 * 1000 } })
+  @ApiOperation({ summary: 'Update a member check in code' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully updated member check in code',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid check-in code' })
+  @ApiResponse({ status: 404, description: 'Member not found' })
+  async checkInCode(@Body() checkInDto: CheckInDto) {
+    return this.membersService.checkInCode(checkInDto);
+  }
+
+  @Post('organization/check-in')
   @Roles(OrgRole.ADMIN, OrgRole.STAFF)
+  @Throttle({ default: { limit: 1, ttl: 60 * 60 * 1000 } })
   @ApiOperation({ summary: 'Check in a member using code' })
   @ApiResponse({ status: 200, description: 'Successfully checked in member' })
   @ApiResponse({ status: 400, description: 'Invalid check-in code' })
   @ApiResponse({ status: 404, description: 'Member not found' })
-  async checkInMember(@Body() checkInDto: CheckInDto) {
-    return this.membersService.checkInMember(
-      checkInDto.memberId,
-      checkInDto.checkInCode,
-    );
+  async checkInMember(
+    @CurrentOrganization() organizationId: string,
+    @Body() checkInDto: CheckInDto,
+  ) {
+    return this.membersService.checkInMember(organizationId, checkInDto);
   }
 
   @ApiBearerAuth('JWT-auth')

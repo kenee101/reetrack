@@ -11,6 +11,7 @@ import { OrganizationUser } from '../../database/entities/organization-user.enti
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { OrgRole } from 'src/common/enums/enums';
 import { User } from 'src/database/entities/user.entity';
+import { CheckInDto } from './members.controller';
 
 @Injectable()
 export class MembersService {
@@ -149,10 +150,45 @@ export class MembersService {
     return members;
   }
 
-  async checkInMember(memberId: string, checkInCode: string) {
+  async checkInCode(checkInData: CheckInDto) {
     // Find the member
     const member = await this.memberRepository.findOne({
-      where: { id: memberId },
+      where: {
+        id: checkInData.memberId,
+      },
+      relations: ['user'],
+    });
+
+    if (!member) {
+      throw new NotFoundException('Member not found');
+    }
+
+    // Update check-in information
+    member.check_in_code = checkInData.checkInCode;
+
+    // Save the updated member
+    await this.memberRepository.save(member);
+    return {
+      success: true,
+      message: 'Check-in code updated successfully',
+      data: {
+        memberId: member.id,
+        fullName: `${member.user.first_name} ${member.user.last_name}`,
+        checkInCount: member.check_in_count,
+        checkInCode: member.check_in_code,
+      },
+    };
+  }
+
+  async checkInMember(organizationId: string, checkInData: CheckInDto) {
+    // Find the member
+    const member = await this.memberRepository.findOne({
+      where: {
+        id: checkInData.memberId,
+        organization_user: {
+          organization_id: organizationId,
+        },
+      },
       relations: ['user'],
     });
 
@@ -160,9 +196,18 @@ export class MembersService {
       throw new NotFoundException('Member not found');
     }
     // Verify check-in code
-    if (member.check_in_code !== checkInCode) {
+    if (member.check_in_code !== checkInData.checkInCode) {
       throw new BadRequestException('Invalid check-in code');
     }
+
+    // Avoid incrementing count twice in a day
+    if (
+      member.checked_in_at &&
+      member.checked_in_at.toDateString() === new Date().toDateString()
+    ) {
+      throw new BadRequestException('Member has already checked in today');
+    }
+
     // Update check-in information
     member.check_in_count += 1;
     member.checked_in_at = new Date();
@@ -177,6 +222,7 @@ export class MembersService {
         fullName: `${member.user.first_name} ${member.user.last_name}`,
         checkInCount: member.check_in_count,
         checkedInAt: member.checked_in_at,
+        checkInCode: member.check_in_code,
       },
     };
   }
