@@ -139,6 +139,18 @@ export class SubscriptionsService {
       );
     }
 
+    const organization = await this.organizationRepository.findOne({
+      where: {
+        id: organizationId,
+      },
+    });
+
+    if (!organization?.paystack_subaccount_code) {
+      throw new BadRequestException(
+        'Organization does not have a paystack subaccount',
+      );
+    }
+
     // Calculate period dates
     const now = new Date();
     const periodEnd = this.calculatePeriodEnd(

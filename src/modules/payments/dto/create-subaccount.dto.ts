@@ -20,7 +20,7 @@ export class CreateSubaccountDto {
   @IsNumber()
   @IsNotEmpty()
   @ApiProperty({ description: 'Percentage charge' })
-  percentage_charge: number;
+  percentage_charge: number = 8.5;
 
   @IsString()
   @IsOptional()

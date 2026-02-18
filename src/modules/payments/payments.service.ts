@@ -201,11 +201,6 @@ export class PaymentsService {
 
     const savedPayment = await this.paymentRepository.save(payment);
 
-    const organization = await this.organizationRepository.findOne({
-      where: { id: organizationId },
-    });
-    const subaccount = organization?.paystack_subaccount_code;
-
     // Initialize Paystack transaction
     const amountInKobo = this.paystackService.convertToKobo(invoice.amount);
     const callbackUrl = `${this.configService.get('frontend.url')}/organization/dashboard`;
@@ -221,7 +216,6 @@ export class PaymentsService {
         ...initializePaymentDto.metadata,
       },
       callbackUrl,
-      subaccount,
     );
 
     if (!paystackResponse.status) {
@@ -706,11 +700,11 @@ export class PaymentsService {
     return {
       message: 'Payment stats retrieved successfully',
       data: {
-        total_payments: totalPayments,
-        successful_payments: successfulPayments,
-        failed_payments: failedPayments,
-        pending_payments: pendingPayments,
-        total_revenue: parseFloat(totalRevenue[0].total),
+        total_member_payments: totalPayments,
+        successful_member_payments: successfulPayments,
+        failed_member_payments: failedPayments,
+        pending_member_payments: pendingPayments,
+        total_member_revenue: parseFloat(totalRevenue[0].total),
         total_expenses: parseFloat(totalExpenses[0].total),
         success_rate:
           totalPayments > 0
