@@ -41,6 +41,16 @@ export class PlansService {
   ) {}
 
   async createMemberPlan(organizationId: string, createPlanDto: CreatePlanDto) {
+    const organization = await this.organizationRepository.findOne({
+      where: { id: organizationId },
+    });
+
+    if (!organization?.paystack_subaccount_code) {
+      throw new NotFoundException(
+        'Organization does not have a paystack subaccount code',
+      );
+    }
+
     const plan = this.memberPlanRepository.create({
       organization_id: organizationId,
       name: createPlanDto.name,

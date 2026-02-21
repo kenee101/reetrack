@@ -70,13 +70,26 @@ export class AuthService {
   async registerOrganization(
     registerDto: RegisterDto,
   ): Promise<RegisterOrgResponse> {
+    // Check if user email exists
+    const existingUser = await this.userRepository.findOne({
+      where: { email: registerDto.email },
+    });
+
+    if (!existingUser) {
+      throw new NotFoundException(
+        'User email not found. Please register an account with us.',
+      );
+    }
+
     // Check if organization email exists
     const existingOrg = await this.organizationRepository.findOne({
       where: { email: registerDto.organizationEmail },
     });
 
     if (existingOrg) {
-      throw new ConflictException('Organization email already exists');
+      throw new ConflictException(
+        'Organization email already exists. Please use a different email.',
+      );
     }
 
     // Generate unique slug
@@ -91,15 +104,6 @@ export class AuthService {
     });
 
     const savedOrg = await this.organizationRepository.save(organization);
-
-    // Check if user email exists
-    const existingUser = await this.userRepository.findOne({
-      where: { email: registerDto.email },
-    });
-
-    if (!existingUser) {
-      throw new NotFoundException('User not found!');
-    }
 
     // Create organization_user with ADMIN role
     const orgUser = this.organizationUserRepository.create({
