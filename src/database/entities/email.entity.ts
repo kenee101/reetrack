@@ -53,9 +53,6 @@ export class Email {
   @Column({ type: 'timestamp', nullable: true })
   sentAt: Date;
 
-  @Column({ type: 'timestamp', nullable: true })
-  deliveredAt: Date;
-
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }
