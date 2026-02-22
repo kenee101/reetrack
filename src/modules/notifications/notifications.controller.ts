@@ -76,12 +76,16 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Send custom email to multiple recipients' })
   @ApiResponse({ status: 200, description: 'Emails sent successfully' })
   @ApiResponse({ status: 400, description: 'Bad Request' })
-  async sendCustomEmail(@Body() sendCustomEmailDto: SendCustomEmailDto) {
+  async sendCustomEmail(
+    @CurrentOrganization() organizationId: string,
+    @Body() sendCustomEmailDto: SendCustomEmailDto,
+  ) {
     this.logger.log(
       `Sending custom email to ${sendCustomEmailDto.to.length} recipients`,
     );
     try {
       const results = await this.notificationsService.sendCustomEmail({
+        organizationId,
         to: sendCustomEmailDto.to,
         subject: sendCustomEmailDto.subject,
         template: sendCustomEmailDto.template,

@@ -3,6 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -60,6 +62,8 @@ export class PaymentsService {
 
     private paystackService: PaystackService,
     private configService: ConfigService,
+
+    @Inject(forwardRef(() => NotificationsService))
     private notificationsService: NotificationsService,
   ) {}
 
@@ -388,7 +392,6 @@ export class PaymentsService {
   }
 
   async createSubaccount(
-    userId: string,
     organizationId: string,
     createSubaccountDto: CreateSubaccountDto,
   ) {
@@ -412,9 +415,7 @@ export class PaymentsService {
   }
 
   async updateSubaccount(
-    userId: string,
     organizationId: string,
-    subaccountCode: string,
     updateData: Partial<CreateSubaccountDto>,
   ) {
     const organization = await this.organizationRepository.findOne({
@@ -425,8 +426,12 @@ export class PaymentsService {
       throw new NotFoundException('Organization not found');
     }
 
+    if (!organization.paystack_subaccount_code) {
+      throw new NotFoundException('Subaccount not found');
+    }
+
     const data = await this.paystackService.updateSubaccount(
-      subaccountCode,
+      organization.paystack_subaccount_code,
       updateData,
     );
 

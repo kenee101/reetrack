@@ -1,4 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { EmailService } from './email.service';
 import { SmsService } from './sms.service';
 import { NotificationType } from './interfaces/notification.interface';
@@ -6,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Organization } from 'src/database/entities';
 import { Repository } from 'typeorm';
+import { PlanLimitService } from '../plans/plans-limit.service';
 
 @Injectable()
 export class NotificationsService {
@@ -21,6 +28,9 @@ export class NotificationsService {
     private emailService: EmailService,
     private smsService: SmsService,
     private configService: ConfigService,
+
+    @Inject(forwardRef(() => PlanLimitService))
+    private planLimitService: PlanLimitService,
 
     @InjectRepository(Organization)
     private organizationRepository: Repository<Organization>,
@@ -95,6 +105,7 @@ export class NotificationsService {
    * @param data Object containing email details
    */
   async sendCustomEmail(data: {
+    organizationId: string;
     to: string[];
     subject: string;
     template: string;
@@ -105,6 +116,19 @@ export class NotificationsService {
       failed: 0,
       errors: [] as Array<{ email: string; error: string }>,
     };
+
+    const organization = await this.organizationRepository.findOne({
+      where: { id: data.organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    await this.planLimitService.assertCanSendEmail(
+      data.organizationId,
+      organization.enterprise_plan,
+    );
 
     // Send emails in parallel
     await Promise.all(

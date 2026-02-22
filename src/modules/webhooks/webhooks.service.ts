@@ -373,6 +373,12 @@ export class WebhooksService {
       case 'yearly':
         date.setFullYear(date.getFullYear() + intervalCount);
         break;
+      case 'quarterly':
+        date.setMonth(date.getMonth() + 3 * intervalCount);
+        break;
+      case 'biweekly':
+        date.setDate(date.getDate() + 14 * intervalCount);
+        break;
     }
 
     return date;

@@ -84,3 +84,16 @@ export enum Currency {
   GBP = 'GBP',
   ZAR = 'ZAR',
 }
+
+export enum EmailStatus {
+  PENDING = 'PENDING', // Queued but not sent yet
+  SENT = 'SENT', // Successfully delivered to provider
+  FAILED = 'FAILED', // Provider rejected or errored
+  DELIVERED = 'DELIVERED', // Provider confirmed delivery (if webhooks supported)
+  BOUNCED = 'BOUNCED', // Recipient address doesn't exist
+}
+
+export enum EmailType {
+  CUSTOM = 'CUSTOM', // Manually sent by org admin counts toward limit
+  SYSTEM = 'SYSTEM', // Automated system emails does NOT count toward limit
+}

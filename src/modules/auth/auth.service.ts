@@ -28,6 +28,7 @@ import type { Request, Response } from 'express';
 import { UserRegisterDto } from 'src/common/dto/user-register.dto';
 import { CustomRegisterDto } from './auth.controller';
 import { InvitationsService } from '../invitations/invitations.service';
+import { PlanLimitService } from '../plans/plans-limit.service';
 
 interface RegisterOrgResponse {
   message: string;
@@ -65,6 +66,7 @@ export class AuthService {
     private configService: ConfigService,
     private notificationsService: NotificationsService,
     private invitationsService: InvitationsService,
+    private planLimitService: PlanLimitService,
   ) {}
 
   async registerOrganization(
@@ -297,6 +299,11 @@ export class AuthService {
       throw new NotFoundException('Organization not found');
     }
 
+    await this.planLimitService.assertCanAddAdmin(
+      organizationId,
+      organization.enterprise_plan,
+    );
+
     // Check if user email exists
     let user = await this.userRepository.findOne({
       where: { email: staffRegisterDto.email },
@@ -442,7 +449,7 @@ export class AuthService {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
       path: '/api/v1/auth/refresh', // Only sent to refresh endpoint
     });
   }

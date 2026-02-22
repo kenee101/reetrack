@@ -17,6 +17,7 @@ import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 import { SubscriptionStatus, Currency } from 'src/common/enums/enums';
+import { PlanLimitService } from './plans-limit.service';
 
 @Injectable()
 export class PlansService {
@@ -38,6 +39,8 @@ export class PlansService {
 
     @InjectRepository(Member)
     private memberRepository: Repository<Member>,
+
+    private planLimitService: PlanLimitService,
   ) {}
 
   async createMemberPlan(organizationId: string, createPlanDto: CreatePlanDto) {
@@ -47,9 +50,14 @@ export class PlansService {
 
     if (!organization?.paystack_subaccount_code) {
       throw new NotFoundException(
-        'Organization does not have a paystack subaccount code',
+        "Organization hasn't added their bank details",
       );
     }
+
+    await this.planLimitService.assertCanAddMemberPlan(
+      organizationId,
+      organization.enterprise_plan,
+    );
 
     const plan = this.memberPlanRepository.create({
       organization_id: organizationId,

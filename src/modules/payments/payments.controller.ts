@@ -90,12 +90,10 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Create a new subaccount' })
   @ApiResponse({ status: 201, description: 'Subaccount created successfully' })
   async createSubaccount(
-    @CurrentUser() user: any,
     @CurrentOrganization() organizationId: string,
     @Body() createSubaccountDto: CreateSubaccountDto,
   ) {
     const subaccount = await this.paymentsService.createSubaccount(
-      user.id,
       organizationId,
       createSubaccountDto,
     );
@@ -106,21 +104,17 @@ export class PaymentsController {
     };
   }
 
-  @Put('paystack/subaccounts/:subaccountCode')
+  @Put('paystack/subaccounts')
   @Roles(OrgRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a subaccount' })
   @ApiResponse({ status: 200, description: 'Subaccount updated successfully' })
   async updateSubaccount(
-    @CurrentUser() user: any,
     @CurrentOrganization() organizationId: string,
-    @Param('subaccountCode') subaccountCode: string,
     @Body() updateData: Partial<CreateSubaccountDto>,
   ) {
     const subaccount = await this.paymentsService.updateSubaccount(
-      user.id,
       organizationId,
-      subaccountCode,
       updateData,
     );
     return {
