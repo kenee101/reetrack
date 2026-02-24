@@ -36,7 +36,11 @@ export class PlanLimitService {
 
   // ─── Admin Accounts ──────────────────────────────────────────────
 
-  async assertCanAddAdmin(organizationId: string, plan: PlanTier) {
+  async assertCanAddStaff(
+    organizationId: string,
+    plan: PlanTier,
+    email: string[],
+  ) {
     const limit = PLAN_FEATURES[plan].adminAccounts;
     if (limit === Infinity) return; // GOLD - no check needed
 
@@ -47,7 +51,7 @@ export class PlanLimitService {
       },
     });
 
-    if (currentCount >= limit) {
+    if (currentCount + email.length > limit) {
       throw new ForbiddenException(
         `Your ${plan} plan allows a maximum of ${limit} admin/staff account(s). ` +
           `You currently have ${currentCount}. Upgrade your plan to add more.`,
@@ -57,7 +61,11 @@ export class PlanLimitService {
 
   // ─── Custom Emails ────────────────────────────────────────────────
 
-  async assertCanSendEmail(organizationId: string, plan: PlanTier) {
+  async assertCanSendEmail(
+    organizationId: string,
+    plan: PlanTier,
+    email: string[],
+  ) {
     const limit = PLAN_FEATURES[plan].customEmailsPerMonth;
 
     const startOfMonth = new Date();
@@ -73,7 +81,7 @@ export class PlanLimitService {
       },
     });
 
-    if (sentThisMonth >= limit) {
+    if (sentThisMonth + email.length > limit) {
       throw new ForbiddenException(
         `Your ${plan} plan allows ${limit} custom email(s) per month. ` +
           `You've sent ${sentThisMonth} this month. Upgrade to send more.`,
@@ -91,7 +99,7 @@ export class PlanLimitService {
       where: { organization_id: organizationId },
     });
 
-    if (currentCount >= limit) {
+    if (currentCount > limit) {
       throw new ForbiddenException(
         `Your ${plan} plan allows a maximum of ${limit} member plan(s). ` +
           `You currently have ${currentCount}. Upgrade your plan to create more.`,

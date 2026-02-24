@@ -79,11 +79,13 @@ export class WebhooksService {
     try {
       switch (event.event) {
         case 'charge.success':
-          await this.handleChargeSuccess(event.data);
+          // Process asynchronously to avoid timeout
+          this.processChargeSuccessAsync(event.data);
           break;
 
         case 'charge.failed':
-          await this.handleChargeFailed(event.data);
+          // Process asynchronously to avoid timeout
+          this.processChargeFailedAsync(event.data);
           break;
 
         case 'invoice.create':
@@ -98,21 +100,39 @@ export class WebhooksService {
 
         case 'transfer.success':
           this.logger.log('Transfer successful');
-          break;
-
-        case 'transfer.failed':
-          this.logger.log('Transfer failed');
+          console.log(event.data);
           break;
 
         default:
-          this.logger.warn(`Unhandled webhook event: ${event.event}`);
+          this.logger.log(`Unhandled Paystack event: ${event.event}`);
       }
 
-      return { status: 'success', message: 'Webhook processed' };
+      // Return immediately to acknowledge webhook
+      return { status: 'received', event: event.event };
+    } catch (error) {
+      this.logger.error(`Error processing Paystack webhook: ${error.message}`);
+      // Still return success to avoid retries, but log error
+      return { status: 'error', error: error.message };
+    }
+  }
+
+  // Async processing methods to avoid webhook timeout
+  private async processChargeSuccessAsync(data: any) {
+    try {
+      await this.handleChargeSuccess(data);
     } catch (error) {
       this.logger.error(
-        `Webhook processing error: ${error.message}`,
-        error.stack,
+        `Error in async charge success processing: ${error.message}`,
+      );
+    }
+  }
+
+  private async processChargeFailedAsync(data: any) {
+    try {
+      await this.handleChargeFailed(data);
+    } catch (error) {
+      this.logger.error(
+        `Error in async charge failed processing: ${error.message}`,
       );
       throw error;
     }

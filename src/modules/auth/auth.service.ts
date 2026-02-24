@@ -315,9 +315,10 @@ export class AuthService {
       throw new NotFoundException('Organization not found');
     }
 
-    await this.planLimitService.assertCanAddAdmin(
+    await this.planLimitService.assertCanAddStaff(
       organizationId,
       organization.enterprise_plan,
+      staffRegisterDto.email,
     );
 
     // Process each email in the array using bulk invitation method

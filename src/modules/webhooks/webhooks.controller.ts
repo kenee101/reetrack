@@ -46,7 +46,11 @@ export class WebhooksController {
       throw new BadRequestException('Invalid webhook signature');
     }
 
-    return await this.webhooksService.handlePaystackWebhook(body);
+    // Process the webhook
+    await this.webhooksService.handlePaystackWebhook(body);
+
+    // Use plain text response as recommended by Paystack
+    return 'Webhook received successfully';
   }
 
   // @Post('stripe')

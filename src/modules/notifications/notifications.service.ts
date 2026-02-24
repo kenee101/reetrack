@@ -154,6 +154,7 @@ export class NotificationsService {
     await this.planLimitService.assertCanSendEmail(
       data.organizationId,
       organization.enterprise_plan,
+      data.to,
     );
 
     // Send emails in parallel
