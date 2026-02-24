@@ -25,7 +25,7 @@ import { MemberRegisterDto } from 'src/common/dto/member-register.dto';
 import { CurrentOrganization } from 'src/common/decorators/organization.decorator';
 import { UserRegisterDto } from 'src/common/dto/user-register.dto';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString } from 'class-validator';
+import { IsEmail, IsString, IsArray, ArrayNotEmpty } from 'class-validator';
 import { StaffRegisterDto } from 'src/common/dto/staff-register.dto';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { OrgRole } from 'src/common/enums/enums';
@@ -39,10 +39,12 @@ type RequestUser = {
 
 export class CustomRegisterDto {
   @ApiProperty({
-    example: 'kenny@life.com',
+    example: ['kenny@life.com', 'levi@life.com'],
   })
-  @IsEmail()
-  email: string;
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsEmail({}, { each: true })
+  email: string[];
 }
 
 class ForgetPasswordDto {
@@ -174,18 +176,26 @@ export class AuthController {
   @Throttle({ short: { limit: 3, ttl: 60000 } }) // 3 requests per minute
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Register a new member' })
+  @ApiOperation({ summary: 'Register new members' })
   @ApiResponse({
     status: 201,
-    description: 'Member successfully registered',
+    description: 'Member registration emails sent successfully',
     content: {
       'application/json': {
         example: {
-          user: {
-            email: 'levi@life.com',
-            firstName: 'Levi',
-            lastName: 'Ackerman',
-          },
+          message: 'Member registration emails sent successfully',
+          results: [
+            {
+              email: 'levi@life.com',
+              status: 'sent',
+              userExists: false,
+            },
+            {
+              email: 'kenny@life.com',
+              status: 'sent',
+              userExists: true,
+            },
+          ],
         },
       },
     },
@@ -208,18 +218,28 @@ export class AuthController {
   @Throttle({ short: { limit: 3, ttl: 60000 } }) // 3 requests per minute
   @UseGuards(JwtAuthGuard)
   @Roles(OrgRole.ADMIN)
-  @ApiOperation({ summary: 'Register a new member' })
+  @ApiOperation({ summary: 'Register new staff members' })
   @ApiResponse({
     status: 201,
-    description: 'Member successfully registered',
+    description: 'Staff registration emails sent successfully',
     content: {
       'application/json': {
         example: {
-          user: {
-            email: 'levi@life.com',
-            firstName: 'Levi',
-            lastName: 'Ackerman',
-          },
+          message: 'Staff registration emails sent successfully',
+          results: [
+            {
+              email: 'admin1@company.com',
+              status: 'sent',
+              userExists: false,
+              invitationToken: 'abc123token',
+            },
+            {
+              email: 'admin2@company.com',
+              status: 'sent',
+              userExists: true,
+              invitationToken: 'def456token',
+            },
+          ],
         },
       },
     },

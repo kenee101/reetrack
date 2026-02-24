@@ -169,21 +169,24 @@ export class NotificationsService {
         });
         await this.emailRepository.save(storedEmail);
 
+        const context = { ...data.context, organization };
         try {
           await this.emailService.sendEmail({
             to: email,
             subject: data.subject,
             template: data.template,
-            context: data.context,
+            context,
           });
           results.success++;
-          this.logger.log(`Custom email sent to ${email}`);
-        } catch (error) {
+
           // Mark as SENT with timestamp
           await this.emailRepository.update(storedEmail.id, {
             status: EmailStatus.SENT,
             sentAt: new Date(),
           });
+
+          this.logger.log(`Custom email sent to ${email}`);
+        } catch (error) {
           results.failed++;
           results.errors.push({
             email,

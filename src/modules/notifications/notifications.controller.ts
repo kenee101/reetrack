@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Logger, Get } from '@nestjs/common';
+import { Controller, Post, Body, Logger, Get, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { EmailService } from './email.service';
@@ -7,6 +7,7 @@ import { type EmailOptions } from './interfaces/notification.interface';
 import { SendCustomEmailDto } from './dto/send-custom-email.dto';
 import { CurrentOrganization } from 'src/common/decorators/organization.decorator';
 import { Throttle } from '@nestjs/throttler';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 // import { type SmsOptions } from './interfaces/notification.interface';
 
 @ApiTags('Notifications')
@@ -57,61 +58,37 @@ export class NotificationsController {
 
   @Post('email/welcome')
   @ApiOperation({ summary: 'Send a welcome email' })
-  @ApiResponse({ status: 200, description: 'Email sent successfully' })
+  @ApiResponse({ status: 200, description: 'Emails sent successfully' })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        to: { type: 'string', example: 'ayomideogunsona13@gmail.com' },
+        to: {
+          type: 'array',
+          items: { type: 'string', format: 'email' },
+          example: [
+            'user1@example.com',
+            'user2@example.com',
+            'user3@example.com',
+          ],
+        },
+        subject: {
+          type: 'string',
+          example: 'Important Update About Your Subscription',
+        },
         context: {
           type: 'object',
-          example: { userName: 'Ayo Sona', organizationName: 'ReeTrack' },
+          example: {
+            content:
+              'Hello, this is a custom email with important information.',
+            additionalNotes: 'Please review the attached documents.',
+          },
         },
       },
+      required: ['to', 'subject', 'context'],
     },
   })
-  @Post('email/custom')
-  @Throttle({ default: { limit: 10, ttl: 60 } })
-  @ApiOperation({ summary: 'Send custom email to multiple recipients' })
-  @ApiResponse({ status: 200, description: 'Emails sent successfully' })
-  @ApiResponse({ status: 400, description: 'Bad Request' })
-  async sendCustomEmail(
-    @CurrentOrganization() organizationId: string,
-    @Body() sendCustomEmailDto: SendCustomEmailDto,
-  ) {
-    this.logger.log(
-      `Sending custom email to ${sendCustomEmailDto.to.length} recipients`,
-    );
-    try {
-      const results = await this.notificationsService.sendCustomEmail({
-        organizationId,
-        to: sendCustomEmailDto.to,
-        subject: sendCustomEmailDto.subject,
-        template: sendCustomEmailDto.template,
-        context: sendCustomEmailDto.context,
-      });
-
-      return {
-        success: true,
-        message: 'Custom emails processed',
-        results: {
-          total: sendCustomEmailDto.to.length,
-          success: results.success,
-          failed: results.failed,
-          errors: results.errors,
-        },
-      };
-    } catch (error) {
-      this.logger.error('Failed to send custom emails', error.stack);
-      return {
-        success: false,
-        message: 'Failed to send custom emails',
-        error: error.message,
-      };
-    }
-  }
-
   async sendWelcomeEmail(@Body() emailOptions: EmailOptions) {
     this.logger.log('Sending welcome email');
     try {
@@ -125,6 +102,74 @@ export class NotificationsController {
       this.logger.error('Failed to send welcome email', error.stack);
       throw error;
     }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('email/custom')
+  @Throttle({ default: { limit: 10, ttl: 60 } })
+  @ApiOperation({ summary: 'Send custom email to multiple recipients' })
+  @ApiResponse({
+    status: 200,
+    description: 'Emails sent successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          example: 'Custom emails processed',
+        },
+        results: {
+          type: 'object',
+          properties: {
+            total: { type: 'number', example: 3 },
+            success: { type: 'number', example: 2 },
+            failed: { type: 'number', example: 1 },
+            errors: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  email: { type: 'string', example: 'user3@example.com' },
+                  error: { type: 'string', example: 'SMTP server unavailable' },
+                },
+              },
+              example: [
+                {
+                  email: 'user3@example.com',
+                  error: 'SMTP server unavailable',
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+  })
+  async sendCustomEmail(
+    @CurrentOrganization() organizationId: string,
+    @Body() sendCustomEmailDto: SendCustomEmailDto,
+  ) {
+    this.logger.log(
+      `Sending custom email to ${sendCustomEmailDto.to.length} recipients`,
+    );
+
+    const results = await this.notificationsService.sendCustomEmail({
+      organizationId,
+      to: sendCustomEmailDto.to,
+      subject: sendCustomEmailDto.subject,
+      template: 'custom_email',
+      context: sendCustomEmailDto.context,
+    });
+
+    return {
+      message: 'Custom emails processed',
+      results: {
+        total: sendCustomEmailDto.to.length,
+        success: results.success,
+        failed: results.failed,
+        errors: results.errors,
+      },
+    };
   }
 
   //   @Post('sms/test')

@@ -210,21 +210,37 @@ export class AuthService {
       throw new NotFoundException('Organization not found');
     }
 
-    // Check if user email exists
-    let user = await this.userRepository.findOne({
-      where: { email: memberRegisterDto.email },
-    });
+    // Process each email in the array
+    const results: {
+      email: string;
+      status: string;
+      userExists: boolean;
+    }[] = [];
 
-    // Send registration email
-    await this.notificationsService.sendMemberRegisterEmail({
-      email: user?.email || memberRegisterDto.email,
-      userName: user ? `${user.first_name} ${user.last_name}` : undefined,
-      organizationName: organization.name,
-      joinToken: organization.slug,
-    });
+    for (const email of memberRegisterDto.email) {
+      // Check if user email exists
+      let user = await this.userRepository.findOne({
+        where: { email },
+      });
+
+      // Send registration email
+      await this.notificationsService.sendMemberRegisterEmail({
+        email: user?.email || email,
+        userName: user ? `${user.first_name} ${user.last_name}` : undefined,
+        organizationName: organization.name,
+        joinToken: organization.slug,
+      });
+
+      results.push({
+        email,
+        status: 'sent',
+        userExists: !!user,
+      });
+    }
 
     return {
-      message: 'Registration sent successfully',
+      message: 'Registration emails sent successfully',
+      results,
     };
   }
 
@@ -304,26 +320,34 @@ export class AuthService {
       organization.enterprise_plan,
     );
 
-    // Check if user email exists
-    let user = await this.userRepository.findOne({
-      where: { email: staffRegisterDto.email },
-    });
+    // Process each email in the array using bulk invitation method
+    const invitationResults =
+      await this.invitationsService.createBulkInvitations(
+        organization,
+        staffRegisterDto.email,
+      );
 
-    const data = await this.invitationsService.createInvitation(
-      organization,
-      staffRegisterDto.email,
-    );
+    // Send emails for newly created invitations
+    for (const result of invitationResults) {
+      if (result.status === 'created') {
+        // Check if user exists for email
+        const user = await this.userRepository.findOne({
+          where: { email: result.email },
+        });
 
-    // Send registration email
-    await this.notificationsService.sendStaffRegisterEmail({
-      email: user?.email || staffRegisterDto.email,
-      userName: user ? `${user.first_name} ${user.last_name}` : undefined,
-      organizationName: organization.name,
-      joinToken: data.token,
-    });
+        // Send registration email
+        await this.notificationsService.sendStaffRegisterEmail({
+          email: result.email,
+          userName: user ? `${user.first_name} ${user.last_name}` : undefined,
+          organizationName: organization.name,
+          joinToken: result.invitationToken,
+        });
+      }
+    }
 
     return {
-      message: 'Registration sent successfully',
+      message: 'Staff registration process completed',
+      results: invitationResults,
     };
   }
 
@@ -442,7 +466,6 @@ export class AuthService {
     //   secure: process.env.NODE_ENV === 'production',
     //   sameSite: 'lax',
     //   maxAge: 15 * 60 * 1000, // 15 minutes
-    //   path: '/',
     // });
     // Refresh token cookie (longer-lived)
     response.cookie('refresh_token', tokens.refreshToken, {
@@ -450,7 +473,7 @@ export class AuthService {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
-      path: '/api/v1/auth/refresh', // Only sent to refresh endpoint
+      // path: '/api/v1/auth/refresh', // Only sent to refresh endpoint
     });
   }
 

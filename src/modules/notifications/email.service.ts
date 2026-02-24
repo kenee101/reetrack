@@ -277,19 +277,14 @@ export class EmailService {
   }
 
   private customEmailTemplate(context: any): string {
-    const {
-      subject = 'UPDATES',
-      content = '',
-      organization = {},
-      additionalInfo = '',
-    } = context;
+    const { content = '', organization = {} } = context;
 
     const orgName = organization?.name || 'Our Organization';
     const website = organization?.website || '#';
     const address =
       organization?.address || '123 Organization St, City, Country';
     const email = organization?.email || 'contact@example.com';
-    const phone = organization?.phone || '+1 (555) 123-4567';
+    const phone = organization?.phone || '+234 803 143 4567';
 
     return `
     <!DOCTYPE html>
@@ -297,7 +292,6 @@ export class EmailService {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>${subject}</title>
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -336,21 +330,11 @@ export class EmailService {
     <body>
       <div class="container">
         <div class="header">
-          <h1>${subject}</h1>
+          <h1>${orgName}</h1>
         </div>
         
         <div class="content">
           ${content}
-          
-          ${
-            additionalInfo
-              ? `
-          <div style="margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-left: 4px solid #4CAF50;">
-            ${additionalInfo}
-          </div>
-          `
-              : ''
-          }
         </div>
         
         <div class="footer">

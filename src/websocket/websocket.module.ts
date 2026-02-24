@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { SubscriptionGateway } from './subscription.gateway';
-import { WsAuthGuard } from './guards/ws-auth.guard';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
@@ -17,7 +16,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       inject: [ConfigService],
     }),
   ],
-  providers: [SubscriptionGateway, WsAuthGuard],
+  providers: [SubscriptionGateway],
   exports: [SubscriptionGateway],
 })
 export class WebsocketModule {}
