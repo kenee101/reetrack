@@ -584,6 +584,7 @@ export class AuthService {
         name: orgUser.organization.name,
         email: orgUser.organization.email,
         role: orgUser.role,
+        slug: orgUser.organization.slug,
         address: orgUser.organization.address,
         website: orgUser.organization.website,
         phone: orgUser.organization.phone,
