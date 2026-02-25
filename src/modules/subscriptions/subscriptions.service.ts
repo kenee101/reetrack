@@ -693,8 +693,8 @@ export class SubscriptionsService {
       await this.organizationSubscriptionRepository
         .createQueryBuilder('sub')
         .where('sub.organization_id = :orgId', { orgId: organizationId })
-        .andWhere('sub.status = :status', {
-          status: In([SubscriptionStatus.ACTIVE, SubscriptionStatus.PENDING]),
+        .andWhere('sub.status IN (:...statuses)', {
+          statuses: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PENDING],
         })
         .getOne();
 
