@@ -65,7 +65,7 @@ export class PlansService {
       organization_id: organizationId,
       name: createPlanDto.name,
       description: createPlanDto.description,
-      price: createPlanDto.amount,
+      price: createPlanDto.price,
       currency: (createPlanDto.currency as Currency) || Currency.NGN,
       interval: createPlanDto.interval,
       interval_count: createPlanDto.intervalCount || 1,
@@ -207,11 +207,11 @@ export class PlansService {
     // Prevent critical changes if there are active subscriptions
     if (hasActiveSubscriptions) {
       if (
-        updatePlanDto.amount !== undefined &&
-        updatePlanDto.amount !== plan.price
+        updatePlanDto.price !== undefined &&
+        updatePlanDto.price !== plan.price
       ) {
         throw new BadRequestException(
-          'Cannot change plan amount while there are active subscriptions. Create a new plan instead.',
+          'Cannot change plan price while there are active subscriptions. Create a new plan instead.',
         );
       }
 
@@ -372,7 +372,7 @@ export class PlansService {
       organization_id: organizationId,
       name: createPlanDto.name,
       description: createPlanDto.description,
-      price: createPlanDto.amount,
+      price: createPlanDto.price,
       currency: (createPlanDto.currency as Currency) || Currency.NGN,
       interval: createPlanDto.interval,
       interval_count: createPlanDto.intervalCount || 1,
@@ -471,11 +471,11 @@ export class PlansService {
     // Prevent critical changes if there are active subscriptions
     if (hasActiveSubscriptions) {
       if (
-        updatePlanDto.amount !== undefined &&
-        updatePlanDto.amount !== plan.price
+        updatePlanDto.price !== undefined &&
+        updatePlanDto.price !== plan.price
       ) {
         throw new BadRequestException(
-          'Cannot change plan amount while there are active subscriptions. Create a new plan instead.',
+          'Cannot change plan price while there are active subscriptions. Create a new plan instead.',
         );
       }
 

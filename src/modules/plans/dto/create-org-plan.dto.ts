@@ -31,7 +31,7 @@ export class CreateOrgPlanDto {
   })
   @IsNumber()
   @Min(0)
-  amount: number;
+  price: number;
 
   @ApiProperty({
     description: 'Currency',
