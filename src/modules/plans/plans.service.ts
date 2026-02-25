@@ -18,6 +18,8 @@ import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 import { SubscriptionStatus, Currency } from 'src/common/enums/enums';
 import { PlanLimitService } from './plans-limit.service';
+import { CreateOrgPlanDto } from './dto/create-org-plan.dto';
+import { UpdateOrgPlanDto } from './dto/update-org-plan.dto';
 
 @Injectable()
 export class PlansService {
@@ -364,7 +366,7 @@ export class PlansService {
   // Company Plans
   async createOrganizationPlan(
     organizationId: string,
-    createPlanDto: CreatePlanDto,
+    createPlanDto: CreateOrgPlanDto,
   ) {
     const plan = this.organizationPlanRepository.create({
       organization_id: organizationId,
@@ -447,7 +449,7 @@ export class PlansService {
   async updateOrganizationPlan(
     organizationId: string,
     planId: string,
-    updatePlanDto: UpdatePlanDto,
+    updatePlanDto: UpdateOrgPlanDto,
   ) {
     const plan = await this.organizationPlanRepository.findOne({
       where: {

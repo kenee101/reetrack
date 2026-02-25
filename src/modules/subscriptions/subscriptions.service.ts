@@ -677,6 +677,7 @@ export class SubscriptionsService {
       await this.organizationSubscriptionRepository.findOne({
         where: {
           plan_id: planId,
+          organization_id: organizationId,
           status: In([SubscriptionStatus.ACTIVE, SubscriptionStatus.PENDING]),
         },
       });

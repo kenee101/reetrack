@@ -25,6 +25,8 @@ import {
 } from '@nestjs/swagger';
 import { MemberPlan, OrganizationPlan } from 'src/database/entities';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { UpdateOrgPlanDto } from './dto/update-org-plan.dto';
+import { CreateOrgPlanDto } from './dto/create-org-plan.dto';
 
 class PlanStatisticsResponse {
   @ApiProperty({ description: 'Total number of plans' })
@@ -241,7 +243,7 @@ export class PlansController {
   @Post('/organization')
   createPlan(
     @CurrentOrganization() organizationId: string,
-    @Body() createPlanDto: CreatePlanDto,
+    @Body() createPlanDto: CreateOrgPlanDto,
   ) {
     return this.plansService.createOrganizationPlan(
       organizationId,
@@ -324,7 +326,7 @@ export class PlansController {
   updatePlan(
     @CurrentOrganization() organizationId: string,
     @Param('id') id: string,
-    @Body() updatePlanDto: UpdatePlanDto,
+    @Body() updatePlanDto: UpdateOrgPlanDto,
   ) {
     return this.plansService.updateOrganizationPlan(
       organizationId,
