@@ -219,19 +219,37 @@ export class CronService {
           relations: ['member.user', 'plan'],
         });
 
-      for (const subscription of expiringSubscriptions) {
+      // Group expiring subscriptions by user
+      const subscriptionsByUser = expiringSubscriptions.reduce(
+        (acc, subscription) => {
+          const userId = subscription.member.user.id;
+          if (!acc[userId]) {
+            acc[userId] = {
+              user: subscription.member.user,
+              subscriptions: [],
+            };
+          }
+          acc[userId].subscriptions.push(subscription);
+          return acc;
+        },
+        {},
+      );
+
+      for (const userId of Object.keys(subscriptionsByUser)) {
+        const { user, subscriptions } = subscriptionsByUser[userId];
+
         await this.notificationsService.sendSubscriptionExpiringNotification({
-          email: subscription.member.user.email,
-          phone: subscription.member.user.phone,
-          memberName: `${subscription.member.user.first_name} ${subscription.member.user.last_name}`,
-          planName: subscription.plan.name,
-          expiryDate: subscription.expires_at,
+          email: user.email,
+          phone: user.phone,
+          memberName: `${user.first_name} ${user.last_name}`,
+          planName: `${subscriptions.length} subscription${subscriptions.length > 1 ? 's' : ''}`,
+          expiryDate: subscriptions[0].expires_at,
           daysLeft: days,
-          renewUrl: `${frontendUrl}/subscriptions/${subscription.id}/renew`,
+          renewUrl: `${frontendUrl}/subscriptions`,
         });
 
         this.logger.log(
-          `Sent ${days}-day expiry reminder for subscription ${subscription.id}`,
+          `Sent ${days}-day expiry reminder for ${subscriptions.length} subscription(s) to ${user.email}`,
         );
       }
 
@@ -260,27 +278,52 @@ export class CronService {
       relations: ['billed_user'],
     });
 
-    for (const invoice of overdueInvoices) {
-      const daysOverdue = differenceInDays(now, invoice.due_date);
+    // Group overdue invoices by user
+    const invoicesByUser = overdueInvoices.reduce((acc, invoice) => {
+      const userId = invoice.billed_user.id;
+      if (!acc[userId]) {
+        acc[userId] = {
+          user: invoice.billed_user,
+          invoices: [],
+        };
+      }
+      acc[userId].invoices.push(invoice);
+      return acc;
+    }, {});
 
-      // Send reminder on days 1, 3, 7, 14, 30
-      const reminderDays = [1, 3, 7, 14, 30];
+    for (const userId of Object.keys(invoicesByUser)) {
+      const { user, invoices } = invoicesByUser[userId];
 
-      if (reminderDays.includes(daysOverdue)) {
+      // Check if any invoice meets the reminder criteria
+      const shouldNotify = invoices.some((invoice) => {
+        const daysOverdue = differenceInDays(now, invoice.due_date);
+        const reminderDays = [1, 3, 7, 14, 30];
+        return reminderDays.includes(daysOverdue);
+      });
+
+      if (shouldNotify) {
+        const totalAmount = invoices.reduce(
+          (sum, invoice) => sum + Number(invoice.amount),
+          0,
+        );
+        const oldestInvoice = invoices.reduce((oldest, invoice) =>
+          invoice.due_date < oldest.due_date ? invoice : oldest,
+        );
+
         await this.notificationsService.sendInvoiceOverdueNotification({
-          email: invoice.billed_user.email,
-          phone: invoice.billed_user.phone,
-          memberName: `${invoice.billed_user.first_name} ${invoice.billed_user.last_name}`,
-          invoiceNumber: invoice.invoice_number,
-          amount: invoice.amount,
-          currency: invoice.currency,
-          dueDate: invoice.due_date,
-          daysOverdue,
-          paymentUrl: `${frontendUrl}/invoices/${invoice.id}/pay`,
+          email: user.email,
+          phone: user.phone,
+          memberName: `${user.first_name} ${user.last_name}`,
+          invoiceNumber: `${invoices.length} invoice${invoices.length > 1 ? 's' : ''}`,
+          amount: totalAmount,
+          currency: invoices[0].currency,
+          dueDate: oldestInvoice.due_date,
+          daysOverdue: differenceInDays(now, oldestInvoice.due_date),
+          paymentUrl: `${frontendUrl}/invoices`,
         });
 
         this.logger.log(
-          `Sent overdue reminder for invoice ${invoice.invoice_number} (${daysOverdue} days)`,
+          `Sent overdue reminder for ${invoices.length} invoice(s) to ${user.email}`,
         );
       }
     }
