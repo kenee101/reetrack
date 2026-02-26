@@ -70,6 +70,7 @@ export class EmailService {
         this.registerOrganizationEmailTemplate(context),
       custom_email: this.customEmailTemplate(context),
       password_reset: this.passwordResetEmail(context),
+      subscription_cancelled: this.subscriptionCancelledTemplate(context),
     };
 
     return templates[template] || this.defaultTemplate(context);
@@ -154,10 +155,10 @@ export class EmailService {
                 
                 <p>Your organization is now ready to use! You can:</p>
                 <ul>
-                    <li>✅ Add and manage members</li>
-                    <li>✅ Create subscription plans</li>
-                    <li>✅ Track payments and subscriptions</li>
-                    <li>✅ Generate reports</li>
+                    <li>Add and manage members</li>
+                    <li>Create subscription plans</li>
+                    <li>Track payments and subscriptions</li>
+                    <li>Generate reports</li>
                 </ul>
                 
                 <p>Get started by clicking the button below:</p>
@@ -254,13 +255,13 @@ export class EmailService {
               <p>You've been invited to join ${context.organizationName} as a staff member.</p>
             
               <p>Please click the button below to create your staff account and get started:</p>          
-              <a href="${context.registrationUrl}" class="button">Create Staff Account</a>
+              <a href="${context.registrationUrl}" class="button">Create Account</a>
 
               <p>Or copy and paste this link into your browser:</p>
               <p>${context.registrationUrl}</p>
       
               <p>Please click the button below to join the organization as staff:</p>
-              <a href="${context.joinUrl}" class="button">Join as Staff</a>
+              <a href="${context.joinUrl}" class="button">Join Organization</a>
 
               <p>Or copy and paste this link into your browser:</p>
               <p>${context.joinUrl}</p>
@@ -480,7 +481,7 @@ export class EmailService {
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { background: #4CAF50; color: white; padding: 20px; text-align: center; }
           .content { padding: 20px; background: #f9f9f9; }
-          .amount { font-size: 32px; font-weight: bold; color: #4CAF50; }
+          .amount { font-size: 16px; font-weight: bold; color: #4CAF50; }
           .details { background: white; padding: 15px; margin: 20px 0; border-radius: 5px; }
           .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
         </style>
@@ -488,7 +489,7 @@ export class EmailService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>✅ Payment Successful</h1>
+            <h1>Payment Successful</h1>
           </div>
           <div class="content">
             <p>Hi ${context.memberName},</p>
@@ -602,7 +603,7 @@ export class EmailService {
             
             <p>Thank you for your prompt attention to this matter.</p>
             
-            <p>Best regards,<br>${this.configService.get('app.name')} Team</p>
+            <p>Best regards,<br>ReeTrack Team</p>
           </div>
           
           <div class="footer">
@@ -633,7 +634,7 @@ export class EmailService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>❌ Payment Failed</h1>
+            <h1>Payment Failed</h1>
           </div>
           <div class="content">
             <p>Hi ${context.memberName},</p>
@@ -687,7 +688,6 @@ export class EmailService {
               <p><strong>Amount:</strong> ${context.currency} ${context.amount} / ${context.interval}</p>
               <p><strong>Start Date:</strong> ${new Date(context.startDate).toLocaleDateString()}</p>
               <p><strong>Next Billing:</strong> ${new Date(context.nextBilling).toLocaleDateString()}</p>
-              ${context.trialEnd ? `<p><strong>Trial Ends:</strong> ${new Date(context.trialEnd).toLocaleDateString()}</p>` : ''}
             </div>
 
             <p>Thank you for subscribing!</p>
@@ -718,7 +718,7 @@ export class EmailService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>⚠️ Subscription Expiring Soon</h1>
+            <h1>Subscription Expiring Soon</h1>
           </div>
           <div class="content">
             <p>Hi ${context.memberName},</p>
@@ -925,7 +925,173 @@ export class EmailService {
         
         <div class="footer">
           <p>This is an automated message. Please do not reply to this email.</p>
-          <p>Need help? Contact our support team at ${this.configService.get('SUPPORT_EMAIL') || 'hello@reetrack.com'}</p>
+          <p>If you have any questions, please contact our support team.</p>
+          <p> ${new Date().getFullYear()} ReeTrack. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+  }
+
+  private subscriptionCancelledTemplate(context: any): string {
+    const { memberName, subscriptionName, expiresAt } = context;
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Subscription Cancelled - ${subscriptionName}</title>
+      <style>
+        body { 
+          font-family: 'Segoe UI', Arial, sans-serif; 
+          line-height: 1.6; 
+          color: #333; 
+          margin: 0;
+          padding: 0;
+          background-color: #f5f5f5;
+        }
+        .container { 
+          max-width: 600px; 
+          margin: 0 auto; 
+          background: #ffffff;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .header { 
+          background: #6c757d;
+          color: white; 
+          padding: 25px 20px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 24px;
+        }
+        .content { 
+          padding: 30px;
+          color: #444;
+        }
+        .alert-box {
+          background-color: #f8f9fa;
+          border-left: 4px solid #6c757d;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 0 4px 4px 0;
+        }
+        .details {
+          background: #f9f9f9;
+          padding: 15px;
+          border-radius: 4px;
+          margin: 20px 0;
+        }
+        .detail-row {
+          display: flex;
+          margin-bottom: 10px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #eee;
+        }
+        .detail-row:last-child {
+          border-bottom: none;
+          margin-bottom: 0;
+          padding-bottom: 0;
+        }
+        .detail-label {
+          font-weight: 600;
+          width: 40%;
+          color: #666;
+        }
+        .detail-value {
+          width: 60%;
+          font-weight: 500;
+        }
+        .footer {
+          background: #f5f5f5;
+          padding: 20px;
+          text-align: center;
+          font-size: 12px;
+          color: #777;
+          border-top: 1px solid #eee;
+        }
+        .action-box {
+          text-align: center;
+          margin: 25px 0;
+        }
+        .button {
+          display: inline-block;
+          padding: 12px 30px;
+          background-color: #007bff;
+          color: white !important;
+          text-decoration: none;
+          border-radius: 4px;
+          font-weight: bold;
+          margin: 20px 0;
+          text-align: center;
+        }
+        @media only screen and (max-width: 600px) {
+          .container {
+            width: 100% !important;
+            border-radius: 0;
+          }
+          .detail-row {
+            flex-direction: column;
+          }
+          .detail-label, .detail-value {
+            width: 100%;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Subscription Cancelled</h1>
+        </div>
+        
+        <div class="content">
+          <p>Hi ${memberName},</p>
+          
+          <div class="alert-box">
+            <p>Your subscription to <strong>${subscriptionName}</strong> has been cancelled as requested.</p>
+          </div>
+          
+          <div class="details">
+            <div class="detail-row">
+              <div class="detail-label">Subscription:</div>
+              <div class="detail-value">${subscriptionName}</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Access Until:</div>
+              <div class="detail-value">${new Date(expiresAt).toLocaleDateString()}</div>
+            </div>
+            <div class="detail-row">
+              <div class="detail-label">Status:</div>
+              <div class="detail-value">Cancelled</div>
+            </div>
+          </div>
+          
+          <p>You will continue to have access to your subscription benefits until <strong>${new Date(expiresAt).toLocaleDateString()}</strong>.</p>
+          
+          <p>After this date, you won't be charged again and your access will be limited.</p>
+          
+          <div class="action-box">
+            <p>If you change your mind, you can reactivate your subscription anytime before the expiry date.</p>
+            <a href="#" class="button">Reactivate Subscription</a>
+          </div>
+          
+          <p>Thank you for being a valued member of our community. We hope to see you again soon!</p>
+          
+          <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+          
+          <p>Best regards,<br>The ReeTrack Team</p>
+        </div>
+        
+        <div class="footer">
+          <p>This is an automated message. Please do not reply to this email.</p>
+          <p>If you have any questions, please contact our support team.</p>
+          <p>© ${new Date().getFullYear()} ReeTrack. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -994,7 +1160,7 @@ export class EmailService {
       <body>
         <div class="container">
           <div class="header">
-            <h1>⚠️ Invoice Overdue</h1>
+            <h1>Invoice Overdue</h1>
           </div>
           <div class="content">
             <p>Hi ${context.memberName},</p>

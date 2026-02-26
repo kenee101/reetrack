@@ -513,23 +513,4 @@ export class NotificationsService {
     );
     this.stats.emailsSent++;
   }
-
-  async sendOrgSubscriptionCancelledNotification(data: {
-    email: string;
-    memberName: string;
-    subscriptionName: string;
-    expiresAt: Date;
-  }) {
-    await this.emailService.sendEmail({
-      to: data.email,
-      subject: 'Your subscription has been cancelled',
-      template: 'subscription_cancelled',
-      context: data,
-    });
-
-    this.logger.log(
-      `Subscription cancelled notification sent to ${data.email}`,
-    );
-    this.stats.emailsSent++;
-  }
 }
