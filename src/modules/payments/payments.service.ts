@@ -582,7 +582,7 @@ export class PaymentsService {
 
     return {
       message: 'Payments retrieved successfully',
-      ...paginate(payments, total, page, limit),
+      data: { ...paginate(payments, total, page, limit) },
     };
   }
 

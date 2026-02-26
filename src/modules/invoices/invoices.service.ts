@@ -100,7 +100,10 @@ export class InvoicesService {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const whereCondition: any = { issuer_org_id: organizationId };
+    const whereCondition: any = {
+      issuer_org_id: organizationId,
+      billed_type: InvoiceBilledType.MEMBER,
+    };
     if (status) {
       whereCondition.status = status;
     }
@@ -115,7 +118,7 @@ export class InvoicesService {
 
     return {
       message: 'All member invoices retrieved successfully',
-      ...paginate(invoices, total, page, limit),
+      data: { ...paginate(invoices, total, page, limit) },
     };
   }
 
