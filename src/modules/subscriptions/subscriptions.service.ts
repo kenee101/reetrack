@@ -284,9 +284,6 @@ export class SubscriptionsService {
     const memberSub = await this.memberRepository.find({
       where: {
         user_id: userId,
-        subscriptions: {
-          status: In([SubscriptionStatus.ACTIVE, SubscriptionStatus.PENDING]),
-        },
       },
       relations: ['subscriptions.plan'],
     });
