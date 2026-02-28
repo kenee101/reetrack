@@ -11,7 +11,7 @@ import { OrganizationUser } from '../../database/entities/organization-user.enti
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { OrgRole } from 'src/common/enums/enums';
 import { User } from 'src/database/entities/user.entity';
-import { CheckInDto } from './members.controller';
+import { CheckInDto, MemberPaginationDto } from './members.controller';
 import { PlanLimitService } from '../plans/plans-limit.service';
 import { Organization } from 'src/database/entities';
 import { PaginationDto, paginate } from 'src/common/dto/pagination.dto';
@@ -34,11 +34,11 @@ export class MembersService {
     private planLimitService: PlanLimitService,
   ) {}
 
-  async findAll(organizationId: string, paginationDto: PaginationDto) {
+  async findAll(organizationId: string, paginationDto: MemberPaginationDto) {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
-    const queryBuilder = this.memberRepository
+    let queryBuilder = this.memberRepository
       .createQueryBuilder('member')
       .leftJoinAndSelect('member.user', 'user')
       .leftJoinAndSelect('member.subscriptions', 'subscriptions')
@@ -48,21 +48,13 @@ export class MembersService {
         organizationId,
       });
 
-    // if (search) {
-    //   queryBuilder.andWhere(
-    //     new Brackets((qb) => {
-    //       qb.where('member.emergency_contact_name ILIKE :search', {
-    //         search: `%${search}%`,
-    //       })
-    //         .orWhere('user.email ILIKE :search', { search: `%${search}%` })
-    //         .orWhere('user.first_name ILIKE :search', { search: `%${search}%` })
-    //         .orWhere('user.last_name ILIKE :search', { search: `%${search}%` });
-    //     }),
-    //   );
-    // }
-
-    queryBuilder.skip(skip).take(limit);
-    const memberData = await queryBuilder.getMany();
+    let memberData: Member[];
+    if (paginationDto.status !== 'all') {
+      queryBuilder.skip(skip).take(limit);
+      memberData = await queryBuilder.getMany();
+    } else {
+      memberData = await queryBuilder.getMany();
+    }
 
     return {
       message: 'Members retrieved successfully',

@@ -479,7 +479,7 @@ export class NotificationsService {
   }) {
     await this.emailService.sendEmail({
       to: data.email,
-      subject: `Invoice Overdue: ${data.invoiceNumber}`,
+      subject: `Invoice Overdue`,
       template: 'invoice_overdue',
       context: data,
     });

@@ -13,7 +13,6 @@ import { MembersService } from './members.service';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentOrganization } from '../../common/decorators/organization.decorator';
-// import { PaginationDto } from '../../common/dto/pagination.dto';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -33,11 +32,13 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { OrgRole } from 'src/common/enums/enums';
 import { Throttle } from '@nestjs/throttler';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { PartialType } from '@nestjs/mapped-types';
 
-class SearchDto {
+export class MemberPaginationDto extends PartialType(PaginationDto) {
   @ApiPropertyOptional()
   @IsOptional()
-  search?: string;
+  @IsString()
+  status?: string;
 }
 
 export class CheckInDto {
@@ -82,7 +83,7 @@ export class MembersController {
   @Get()
   findAll(
     @CurrentOrganization() organizationId: string,
-    @Query() paginationDto: PaginationDto,
+    @Query() paginationDto: MemberPaginationDto,
   ) {
     return this.membersService.findAll(organizationId, paginationDto);
   }

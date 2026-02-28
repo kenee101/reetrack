@@ -124,7 +124,7 @@ export class CronService {
         phone: subscription.member.user.phone,
         memberName: `${subscription.member.user.first_name} ${subscription.member.user.last_name}`,
         planName: subscription.plan.name,
-        reactivateUrl: `${frontendUrl}/subscriptions/${subscription.id}/renew`,
+        reactivateUrl: `${frontendUrl}/auth/login`,
       });
 
       this.logger.log(`Subscription ${subscription.id} marked as expired`);
@@ -180,7 +180,7 @@ export class CronService {
         phone: subscription.organization.phone,
         memberName: subscription.organization.name,
         planName: subscription.plan.name,
-        reactivateUrl: `${frontendUrl}/subscriptions/${subscription.id}/renew`,
+        reactivateUrl: `${frontendUrl}/auth/login`,
       });
 
       this.logger.log(`Subscription ${subscription.id} marked as expired`);
@@ -245,7 +245,7 @@ export class CronService {
           planName: `${subscriptions.length} subscription${subscriptions.length > 1 ? 's' : ''}`,
           expiryDate: subscriptions[0].expires_at,
           daysLeft: days,
-          renewUrl: `${frontendUrl}/subscriptions`,
+          renewUrl: `${frontendUrl}/auth/login`,
         });
 
         this.logger.log(
@@ -314,12 +314,12 @@ export class CronService {
           email: user.email,
           phone: user.phone,
           memberName: `${user.first_name} ${user.last_name}`,
-          invoiceNumber: `${invoices.length} invoice${invoices.length > 1 ? 's' : ''}`,
+          invoiceNumber: invoices.map((invoice) => invoice.id).join(', '),
           amount: totalAmount,
           currency: invoices[0].currency,
           dueDate: oldestInvoice.due_date,
           daysOverdue: differenceInDays(now, oldestInvoice.due_date),
-          paymentUrl: `${frontendUrl}/invoices`,
+          paymentUrl: `${frontendUrl}/auth/login`,
         });
 
         this.logger.log(
@@ -588,6 +588,8 @@ export class CronService {
   ) {
     console.log('subscription', subscription);
     console.log('invoice', invoice);
+    const frontendUrl = this.configService.get('frontend.url');
+
     await this.notificationsService.sendPaymentReminderNotification({
       email: subscription.member.user.email,
       memberName: `${subscription.member.user.first_name} ${subscription.member.user.last_name}`,
@@ -595,7 +597,7 @@ export class CronService {
       amount: invoice.amount,
       currency: invoice.currency,
       invoiceNumber: invoice.invoice_number,
-      paymentUrl: `${process.env.FRONTEND_URL}/member/invoices/${invoice.id}/pay`,
+      paymentUrl: `${frontendUrl}/auth/login`,
       dueDate: invoice.due_date,
     });
   }
@@ -609,6 +611,7 @@ export class CronService {
     await this.memberSubscriptionRepository.save(subscription);
 
     // Send failure notification with action items
+    const frontendUrl = this.configService.get('frontend.url');
     await this.notificationsService.sendRenewalFailedNotification({
       email: subscription.member.user.email,
       memberName: `${subscription.member.user.first_name} ${subscription.member.user.last_name}`,
@@ -616,9 +619,7 @@ export class CronService {
       amount: subscription.plan.price,
       currency: subscription.plan.currency,
       invoiceNumber: invoice?.invoice_number,
-      paymentUrl: invoice
-        ? `${process.env.FRONTEND_URL}/member/invoices/${invoice.id}/pay`
-        : `${process.env.FRONTEND_URL}/member/subscriptions`,
+      paymentUrl: `${frontendUrl}/auth/login`,
       expiresAt: subscription.expires_at,
     });
   }
