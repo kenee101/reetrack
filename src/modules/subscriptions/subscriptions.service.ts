@@ -626,13 +626,31 @@ export class SubscriptionsService {
       throw new NotFoundException('Enterprise plan not found or inactive');
     }
 
-    // 3. Check for existing active subscription
-    const existingSubscription = await this.organizationSubscriptionRepository
-      .createQueryBuilder('sub')
-      .where('sub.organization_id = :orgId', { orgId: organizationId })
-      .andWhere('sub.status = :status', { status: SubscriptionStatus.ACTIVE })
-      .andWhere('sub.expires_at > :now', { now: new Date() })
-      .getOne();
+    // 2. Check if organization already has an active/pending subscription to this plan
+    const sameSubscription =
+      await this.organizationSubscriptionRepository.findOne({
+        where: {
+          plan_id: planId,
+          organization_id: organizationId,
+          status: In([SubscriptionStatus.ACTIVE, SubscriptionStatus.PENDING]),
+        },
+      });
+
+    if (sameSubscription) {
+      throw new BadRequestException(
+        'Organization already has an active/pending subscription to this plan',
+      );
+    }
+
+    // 3. Check for existing active/pending subscription
+    const existingOrgSubscription =
+      await this.organizationSubscriptionRepository
+        .createQueryBuilder('sub')
+        .where('sub.organization_id = :orgId', { orgId: organizationId })
+        .andWhere('sub.status IN (:...statuses)', {
+          statuses: [SubscriptionStatus.ACTIVE, SubscriptionStatus.PENDING],
+        })
+        .getOne();
 
     if (existingOrgSubscription) {
       // throw new BadRequestException(
