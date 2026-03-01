@@ -51,7 +51,7 @@ export class WebhooksService {
     @InjectRepository(MemberSubscription)
     private memberSubscriptionRepository: Repository<MemberSubscription>,
 
-    @Inject('STRIPE') private readonly stripe: Stripe,
+    // @Inject('STRIPE') private readonly stripe: Stripe,
 
     private configService: ConfigService,
     private notificationsService: NotificationsService,
@@ -61,7 +61,7 @@ export class WebhooksService {
       this.configService.get('app.nodeEnv') === 'production'
         ? this.configService.get('paystack.secretKey')
         : this.configService.get('paystack.testSecretKey');
-    this.stripeWebhookSecret = this.configService.get('stripe.webhookSecret');
+    // this.stripeWebhookSecret = this.configService.get('stripe.webhookSecret');
   }
 
   verifyPaystackSignature(payload: string, signature: string): boolean {

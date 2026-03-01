@@ -11,8 +11,8 @@ import {
   OrganizationSubscription,
   OrganizationUser,
 } from 'src/database/entities';
-import { Stripe } from 'stripe';
-import { ConfigService } from '@nestjs/config';
+// import { Stripe } from 'stripe';
+// import { ConfigService } from '@nestjs/config';
 import { PlansModule } from '../plans/plans.module';
 
 @Module({
@@ -31,21 +31,21 @@ import { PlansModule } from '../plans/plans.module';
   controllers: [WebhooksController],
   providers: [
     WebhooksService,
-    {
-      provide: 'STRIPE',
-      useFactory: (configService: ConfigService) => {
-        const stripeKey = configService.get<string>('stripe.testSecretKey');
-        if (!stripeKey) {
-          throw new Error(
-            'STRIPE_TEST_SECRET_KEY is not defined in the configuration',
-          );
-        }
-        return new Stripe(stripeKey, {
-          apiVersion: '2025-12-15.clover',
-        });
-      },
-      inject: [ConfigService],
-    },
+    // {
+    //   provide: 'STRIPE',
+    //   useFactory: (configService: ConfigService) => {
+    //     const stripeKey = configService.get<string>('stripe.testSecretKey');
+    //     if (!stripeKey) {
+    //       throw new Error(
+    //         'STRIPE_TEST_SECRET_KEY is not defined in the configuration',
+    //       );
+    //     }
+    //     return new Stripe(stripeKey, {
+    //       apiVersion: '2025-12-15.clover',
+    //     });
+    //   },
+    //   inject: [ConfigService],
+    // },
   ],
 })
 export class WebhooksModule {}
