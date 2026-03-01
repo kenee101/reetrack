@@ -443,8 +443,8 @@ export class SubscriptionsService {
    */
   async cancelSubscription(subscriptionId: string, userId: string) {
     const subscription = await this.memberSubscriptionRepository.findOne({
-      where: { id: subscriptionId, organization_id: organizationId },
-      relations: ['member', 'member.user'],
+      where: { id: subscriptionId, member: { user_id: userId } },
+      relations: ['member.user', 'plan'],
     });
 
     if (!subscription) {
