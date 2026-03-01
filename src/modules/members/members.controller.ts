@@ -32,9 +32,8 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { OrgRole } from 'src/common/enums/enums';
 import { Throttle } from '@nestjs/throttler';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { PartialType } from '@nestjs/mapped-types';
 
-export class MemberPaginationDto extends PartialType(PaginationDto) {
+export class MemberPaginationDto extends PaginationDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

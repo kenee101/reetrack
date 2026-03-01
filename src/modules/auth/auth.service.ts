@@ -528,7 +528,6 @@ export class AuthService {
       message: 'Tokens refreshed successfully',
       data: {
         access_token: accessToken,
-        refresh_token: refreshToken,
       },
     };
   }
