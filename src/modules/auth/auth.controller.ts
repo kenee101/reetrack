@@ -382,10 +382,10 @@ export class AuthController {
     });
 
     // Create a new object without refresh_token
-    const { refresh_token, ...data } = result.data;
+    const { message } = result;
     return {
-      ...result,
-      data,
+      message,
+      refresh_token: newRefreshToken,
     };
   }
 
