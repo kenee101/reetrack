@@ -32,7 +32,7 @@ export class MemberPlan {
     description: 'Plan price',
     example: 10000,
   })
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int' })
   price: number;
 
   @Column({ type: 'enum', enum: Currency, default: Currency.NGN })
@@ -44,14 +44,14 @@ export class MemberPlan {
     example: PlanInterval.MONTHLY,
   })
   @IsEnum(PlanInterval)
-  @Column({ type: 'enum', enum: PlanInterval, nullable: true })
+  @Column({ type: 'enum', enum: PlanInterval })
   interval: PlanInterval;
 
   @ApiProperty({
     description: 'Plan interval count',
     example: 1,
   })
-  @Column({ type: 'int', default: 1, nullable: true })
+  @Column({ type: 'int', default: 1 })
   interval_count: number;
 
   @Column({ type: 'text', array: true })

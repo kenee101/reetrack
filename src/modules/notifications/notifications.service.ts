@@ -1,4 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { EmailService } from './email.service';
 import { SmsService } from './sms.service';
 import { NotificationType } from './interfaces/notification.interface';
@@ -6,6 +12,9 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Organization } from 'src/database/entities';
 import { Repository } from 'typeorm';
+import { PlanLimitService } from '../plans/plans-limit.service';
+import { Email } from 'src/database/entities/email.entity';
+import { EmailStatus, EmailType } from 'src/common/enums/enums';
 
 @Injectable()
 export class NotificationsService {
@@ -22,9 +31,36 @@ export class NotificationsService {
     private smsService: SmsService,
     private configService: ConfigService,
 
+    @Inject(forwardRef(() => PlanLimitService))
+    private planLimitService: PlanLimitService,
+
     @InjectRepository(Organization)
     private organizationRepository: Repository<Organization>,
+
+    @InjectRepository(Email)
+    private emailRepository: Repository<Email>,
   ) {}
+
+  async sendOrganizationRegisterEmail(data: {
+    userEmail: string;
+    userName: string;
+    organizationName: string;
+  }) {
+    const baseUrl = this.configService.get('frontend.url');
+    const context = {
+      ...data,
+      loginUrl: `${baseUrl}/auth/login`,
+    };
+
+    await this.emailService.sendEmail({
+      to: data.userEmail,
+      subject: `You've been invited to join ${data.organizationName}'s staff team`,
+      template: 'register_organization_email',
+      context,
+    });
+
+    this.logger.log(`Staff registration email sent to ${data.userEmail}`);
+  }
 
   async sendMemberRegisterEmail(data: {
     email: string;
@@ -36,7 +72,7 @@ export class NotificationsService {
     const context = {
       ...data,
       registrationUrl: `${baseUrl}/auth/register`,
-      joinUrl: data.joinToken ? `${baseUrl}/auth/org/${data.joinToken}` : null,
+      joinUrl: data.joinToken ? `${baseUrl}/join/${data.joinToken}` : null,
     };
 
     await this.emailService.sendEmail({
@@ -95,6 +131,7 @@ export class NotificationsService {
    * @param data Object containing email details
    */
   async sendCustomEmail(data: {
+    organizationId: string;
     to: string[];
     subject: string;
     template: string;
@@ -106,17 +143,49 @@ export class NotificationsService {
       errors: [] as Array<{ email: string; error: string }>,
     };
 
+    const organization = await this.organizationRepository.findOne({
+      where: { id: data.organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    await this.planLimitService.assertCanSendEmail(
+      data.organizationId,
+      organization.enterprise_plan,
+      data.to,
+    );
+
     // Send emails in parallel
     await Promise.all(
       data.to.map(async (email) => {
+        // Create row in PENDING state
+        const storedEmail = this.emailRepository.create({
+          organization_id: data.organizationId,
+          toEmail: email,
+          subject: data.subject,
+          type: EmailType.CUSTOM,
+          status: EmailStatus.PENDING,
+        });
+        await this.emailRepository.save(storedEmail);
+
+        const context = { ...data.context, organization };
         try {
           await this.emailService.sendEmail({
             to: email,
             subject: data.subject,
             template: data.template,
-            context: data.context,
+            context,
           });
           results.success++;
+
+          // Mark as SENT with timestamp
+          await this.emailRepository.update(storedEmail.id, {
+            status: EmailStatus.SENT,
+            sentAt: new Date(),
+          });
+
           this.logger.log(`Custom email sent to ${email}`);
         } catch (error) {
           results.failed++;
@@ -355,20 +424,6 @@ export class NotificationsService {
     paymentUrl: string;
     expiresAt: Date;
   }) {
-    const emailHtml = `
-    <h2>Subscription Renewal Failed</h2>
-    <p>Hi ${data.memberName},</p>
-    <p>We couldn't renew your ${data.subscriptionName} subscription.</p>
-    <p><strong>Amount:</strong> ${data.currency} ${data.amount}</p>
-    <p><strong>Action Required:</strong></p>
-    <ul>
-      <li>Update your payment method</li>
-      <li>Or make a manual payment</li>
-    </ul>
-    <p>Your subscription will expire on ${data.expiresAt.toDateString()}</p>
-    <a href="${data.paymentUrl}">Update Payment Method</a>
-  `;
-
     await this.emailService.sendEmail({
       to: data.email,
       subject: `⚠️ Action Required: Subscription Renewal Failed - ${data.subscriptionName}`,
@@ -384,9 +439,8 @@ export class NotificationsService {
         paymentUrl: data.paymentUrl,
         expiresAt: data.expiresAt.toLocaleDateString(),
         supportEmail:
-          this.configService.get('SUPPORT_EMAIL') || 'support@reetrack.com',
+          this.configService.get('SUPPORT_EMAIL') || 'hello@reetrack.com',
       },
-      // html: emailHtml
     });
     this.logger.log(`Renewal failed notification sent to ${data.email}`);
     this.stats.emailsSent++;
@@ -425,7 +479,7 @@ export class NotificationsService {
   }) {
     await this.emailService.sendEmail({
       to: data.email,
-      subject: `Invoice Overdue: ${data.invoiceNumber}`,
+      subject: `Invoice Overdue`,
       template: 'invoice_overdue',
       context: data,
     });
@@ -441,7 +495,7 @@ export class NotificationsService {
     this.stats.emailsSent++;
   }
 
-  async sendSubscriptionCanceledNotification(data: {
+  async sendSubscriptionCancelledNotification(data: {
     email: string;
     memberName: string;
     subscriptionName: string;
@@ -449,29 +503,14 @@ export class NotificationsService {
   }) {
     await this.emailService.sendEmail({
       to: data.email,
-      subject: 'Your subscription has been canceled',
-      template: 'subscription_canceled',
+      subject: 'Your subscription has been cancelled',
+      template: 'subscription_cancelled',
       context: data,
     });
 
-    this.logger.log(`Subscription canceled notification sent to ${data.email}`);
-    this.stats.emailsSent++;
-  }
-
-  async sendOrgSubscriptionCanceledNotification(data: {
-    email: string;
-    memberName: string;
-    subscriptionName: string;
-    expiresAt: Date;
-  }) {
-    await this.emailService.sendEmail({
-      to: data.email,
-      subject: 'Your subscription has been canceled',
-      template: 'subscription_canceled',
-      context: data,
-    });
-
-    this.logger.log(`Subscription canceled notification sent to ${data.email}`);
+    this.logger.log(
+      `Subscription cancelled notification sent to ${data.email}`,
+    );
     this.stats.emailsSent++;
   }
 }

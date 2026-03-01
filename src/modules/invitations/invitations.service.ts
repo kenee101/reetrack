@@ -1,12 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OrganizationInvite } from '../../database/entities/organization-invite.entity';
-import { OrgRole } from 'src/common/enums/enums';
 import { Organization } from '../../database/entities/organization.entity';
 import { User } from '../../database/entities/user.entity';
-import { NotificationsService } from '../notifications/notifications.service';
+import { OrgRole } from 'src/common/enums/enums';
 import * as crypto from 'crypto';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ConfigService } from '@nestjs/config';
 import { OrganizationUser } from 'src/database/entities/organization-user.entity';
 
@@ -44,7 +48,7 @@ export class InvitationsService {
   }
 
   async createInvitation(organization: Organization, staffEmail: string) {
-    // Check for existing invitation
+    // Check if invitation already exists
     const existing = await this.invitationRepository.findOne({
       where: {
         organization_id: organization.id,
@@ -54,6 +58,7 @@ export class InvitationsService {
     });
 
     if (existing) {
+      // Return existing invitation instead of throwing error
       return existing;
     }
 
@@ -75,6 +80,71 @@ export class InvitationsService {
     return savedInvitation;
   }
 
+  /**
+   * Create multiple invitations for staff members
+   * Returns detailed results for each email
+   */
+  async createBulkInvitations(organization: Organization, emails: string[]) {
+    const results: {
+      email: string;
+      status: string;
+      message?: string;
+      error?: string;
+      userExists: boolean;
+      invitationToken: string;
+    }[] = [];
+
+    for (const email of emails) {
+      try {
+        // Check if user already exists
+        const existingUser = await this.userRepository.findOne({
+          where: { email },
+        });
+
+        // Check if invitation already exists
+        const existingInvitation = await this.invitationRepository.findOne({
+          where: {
+            organization_id: organization.id,
+            email,
+            accepted: 'false',
+          },
+        });
+
+        if (existingInvitation) {
+          results.push({
+            email,
+            status: 'exists',
+            message: 'Invitation already sent',
+            invitationToken: existingInvitation.token,
+            userExists: !!existingUser,
+          });
+          continue;
+        }
+
+        // Create new invitation
+        const invitation = await this.createInvitation(organization, email);
+
+        results.push({
+          email,
+          status: 'created',
+          message: 'Invitation created successfully',
+          invitationToken: invitation.token,
+          userExists: !!existingUser,
+        });
+      } catch (error) {
+        results.push({
+          email,
+          status: 'failed',
+          message: error.message,
+          invitationToken: '',
+          userExists: false,
+        });
+      }
+    }
+
+    return results;
+  }
+
   async validateInvitation(token: string): Promise<OrganizationInvite> {
     const invitation = await this.invitationRepository.findOne({
       where: { token, accepted: 'false' },
@@ -83,7 +153,7 @@ export class InvitationsService {
     console.log('invitation', invitation);
 
     if (!invitation || new Date() > invitation.expires_at) {
-      throw new Error('Invalid or expired invitation');
+      throw new BadRequestException('Invalid or expired invitation');
     }
 
     return invitation;

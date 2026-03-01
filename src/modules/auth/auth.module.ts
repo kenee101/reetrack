@@ -15,6 +15,7 @@ import { Member } from '../../database/entities/member.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationInvite } from '../../database/entities/organization-invite.entity';
 import { InvitationsModule } from '../invitations/invitations.module';
+import { PlansModule } from '../plans/plans.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { InvitationsModule } from '../invitations/invitations.module';
     }),
     NotificationsModule,
     InvitationsModule,
+    PlansModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, RefreshJwtStrategy],

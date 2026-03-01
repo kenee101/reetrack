@@ -7,11 +7,13 @@ import { Invoice } from '../../database/entities/invoice.entity';
 import { MemberSubscription } from '../../database/entities/member-subscription.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import {
+  Organization,
   OrganizationSubscription,
   OrganizationUser,
 } from 'src/database/entities';
-import { Stripe } from 'stripe';
-import { ConfigService } from '@nestjs/config';
+// import { Stripe } from 'stripe';
+// import { ConfigService } from '@nestjs/config';
+import { PlansModule } from '../plans/plans.module';
 
 @Module({
   imports: [
@@ -21,27 +23,29 @@ import { ConfigService } from '@nestjs/config';
       MemberSubscription,
       OrganizationSubscription,
       OrganizationUser,
+      Organization,
     ]),
     NotificationsModule,
+    PlansModule,
   ],
   controllers: [WebhooksController],
   providers: [
     WebhooksService,
-    {
-      provide: 'STRIPE',
-      useFactory: (configService: ConfigService) => {
-        const stripeKey = configService.get<string>('stripe.testSecretKey');
-        if (!stripeKey) {
-          throw new Error(
-            'STRIPE_TEST_SECRET_KEY is not defined in the configuration',
-          );
-        }
-        return new Stripe(stripeKey, {
-          apiVersion: '2025-12-15.clover',
-        });
-      },
-      inject: [ConfigService],
-    },
+    // {
+    //   provide: 'STRIPE',
+    //   useFactory: (configService: ConfigService) => {
+    //     const stripeKey = configService.get<string>('stripe.testSecretKey');
+    //     if (!stripeKey) {
+    //       throw new Error(
+    //         'STRIPE_TEST_SECRET_KEY is not defined in the configuration',
+    //       );
+    //     }
+    //     return new Stripe(stripeKey, {
+    //       apiVersion: '2025-12-15.clover',
+    //     });
+    //   },
+    //   inject: [ConfigService],
+    // },
   ],
 })
 export class WebhooksModule {}

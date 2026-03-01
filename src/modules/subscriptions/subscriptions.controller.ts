@@ -106,7 +106,7 @@ export class SubscriptionsController {
   @ApiOperation({ summary: 'Cancel a member subscription' })
   @ApiResponse({
     status: 200,
-    description: 'Subscription canceled successfully',
+    description: 'Subscription cancelled successfully',
     type: MemberSubscription,
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
@@ -180,27 +180,27 @@ export class SubscriptionsController {
     );
   }
 
-  @Post('/members/:subscriptionId/change-plan')
-  @ApiOperation({ summary: 'Change subscription plan' })
-  @ApiResponse({
-    status: 200,
-    description: 'Subscription plan changed successfully',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Subscription or new plan not found',
-  })
-  async changePlan(
-    @CurrentOrganization() organizationId: string,
-    @Param('subscriptionId') subscriptionId: string,
-    @Body() changePlanDto: ChangeSubscriptionPlanDto,
-  ) {
-    return this.subscriptionsService.changeSubscriptionPlan(
-      organizationId,
-      subscriptionId,
-      changePlanDto,
-    );
-  }
+  // @Post('/members/:subscriptionId/change-plan')
+  // @ApiOperation({ summary: 'Change subscription plan' })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'Subscription plan changed successfully',
+  // })
+  // @ApiResponse({
+  //   status: 404,
+  //   description: 'Subscription or new plan not found',
+  // })
+  // async changePlan(
+  //   @CurrentOrganization() organizationId: string,
+  //   @Param('subscriptionId') subscriptionId: string,
+  //   @Body() changePlanDto: ChangeSubscriptionPlanDto,
+  // ) {
+  //   return this.subscriptionsService.changeSubscriptionPlan(
+  //     organizationId,
+  //     subscriptionId,
+  //     changePlanDto,
+  //   );
+  // }
 
   //////////////////////////////////////
   // Organization
@@ -267,27 +267,27 @@ export class SubscriptionsController {
     );
   }
 
-  @Post('organizations/change-plan')
-  @ApiOperation({ summary: 'Change subscription plan' })
-  @ApiResponse({
-    status: 200,
-    description: 'Subscription plan changed successfully',
-  })
-  changeOrgPlan(
-    @CurrentOrganization() organizationId: string,
-    @Body() changePlanDto: ChangeOrgSubscriptionPlanDto,
-  ) {
-    return this.subscriptionsService.changeOrgSubscriptionPlan(
-      organizationId,
-      changePlanDto,
-    );
-  }
+  // @Post('organizations/change-plan')
+  // @ApiOperation({ summary: 'Change subscription plan' })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'Subscription plan changed successfully',
+  // })
+  // changeOrgPlan(
+  //   @CurrentOrganization() organizationId: string,
+  //   @Body() changePlanDto: ChangeOrgSubscriptionPlanDto,
+  // ) {
+  //   return this.subscriptionsService.changeOrgSubscriptionPlan(
+  //     organizationId,
+  //     changePlanDto,
+  //   );
+  // }
 
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Cancel a organization subscription' })
   @ApiResponse({
     status: 200,
-    description: 'Subscription canceled successfully',
+    description: 'Subscription cancelled successfully',
     type: OrganizationSubscription,
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })

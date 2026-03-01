@@ -14,7 +14,10 @@ export class PaystackService {
   private readonly secretKey: string | undefined;
 
   constructor(private configService: ConfigService) {
-    this.secretKey = this.configService.get('paystack.testSecretKey');
+    this.secretKey =
+      this.configService.get('app.nodeEnv') === 'production'
+        ? this.configService.get('paystack.secretKey')
+        : this.configService.get('paystack.testSecretKey');
 
     this.paystackClient = axios.create({
       baseURL: 'https://api.paystack.co',
@@ -27,7 +30,8 @@ export class PaystackService {
 
   async initializeTransaction(
     email: string,
-    amount: number, // Amount in kobo (smallest currency unit)
+    amount: number, // Amount in smallest currency unit
+    currency: string,
     reference: string,
     metadata?: any,
     callbackUrl?: string,
@@ -38,13 +42,14 @@ export class PaystackService {
         '/transaction/initialize',
         {
           email,
-          amount, // Paystack expects amount in kobo (NGN x 100)
+          amount, // Paystack expects amount in lowest currency (e.g, NGN x 100)
+          currency,
           reference,
           metadata,
           ...(subaccount && { subaccount }),
           ...(subaccount ? { bearer: 'subaccount' } : {}),
           channels: ['card'], // Only allow cards for recurring billing
-          // callback_url: callbackUrl,
+          callback_url: callbackUrl,
         },
       );
 
@@ -310,12 +315,12 @@ export class PaystackService {
     }
   }
 
-  convertToKobo(amount: number): number {
+  convertToSubUnit(amount: number): number {
     return Math.round(amount * 100);
   }
 
-  convertToNaira(kobo: number): number {
-    return kobo / 100;
+  convertToMainUnit(subUnit: number): number {
+    return subUnit / 100;
   }
 }
 

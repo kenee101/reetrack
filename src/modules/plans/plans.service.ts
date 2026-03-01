@@ -17,6 +17,9 @@ import { CreatePlanDto } from './dto/create-plan.dto';
 import { UpdatePlanDto } from './dto/update-plan.dto';
 import { PaginationDto, paginate } from '../../common/dto/pagination.dto';
 import { SubscriptionStatus, Currency } from 'src/common/enums/enums';
+import { PlanLimitService } from './plans-limit.service';
+import { CreateOrgPlanDto } from './dto/create-org-plan.dto';
+import { UpdateOrgPlanDto } from './dto/update-org-plan.dto';
 
 @Injectable()
 export class PlansService {
@@ -38,14 +41,31 @@ export class PlansService {
 
     @InjectRepository(Member)
     private memberRepository: Repository<Member>,
+
+    private planLimitService: PlanLimitService,
   ) {}
 
   async createMemberPlan(organizationId: string, createPlanDto: CreatePlanDto) {
+    const organization = await this.organizationRepository.findOne({
+      where: { id: organizationId },
+    });
+
+    if (!organization?.paystack_subaccount_code) {
+      throw new NotFoundException(
+        "Organization hasn't added their bank details",
+      );
+    }
+
+    await this.planLimitService.assertCanAddMemberPlan(
+      organizationId,
+      organization.enterprise_plan,
+    );
+
     const plan = this.memberPlanRepository.create({
       organization_id: organizationId,
       name: createPlanDto.name,
       description: createPlanDto.description,
-      price: createPlanDto.amount,
+      price: createPlanDto.price,
       currency: (createPlanDto.currency as Currency) || Currency.NGN,
       interval: createPlanDto.interval,
       interval_count: createPlanDto.intervalCount || 1,
@@ -187,11 +207,11 @@ export class PlansService {
     // Prevent critical changes if there are active subscriptions
     if (hasActiveSubscriptions) {
       if (
-        updatePlanDto.amount !== undefined &&
-        updatePlanDto.amount !== plan.price
+        updatePlanDto.price !== undefined &&
+        updatePlanDto.price !== plan.price
       ) {
         throw new BadRequestException(
-          'Cannot change plan amount while there are active subscriptions. Create a new plan instead.',
+          'Cannot change plan price while there are active subscriptions. Create a new plan instead.',
         );
       }
 
@@ -346,13 +366,13 @@ export class PlansService {
   // Company Plans
   async createOrganizationPlan(
     organizationId: string,
-    createPlanDto: CreatePlanDto,
+    createPlanDto: CreateOrgPlanDto,
   ) {
     const plan = this.organizationPlanRepository.create({
       organization_id: organizationId,
       name: createPlanDto.name,
       description: createPlanDto.description,
-      price: createPlanDto.amount,
+      price: createPlanDto.price,
       currency: (createPlanDto.currency as Currency) || Currency.NGN,
       interval: createPlanDto.interval,
       interval_count: createPlanDto.intervalCount || 1,
@@ -429,7 +449,7 @@ export class PlansService {
   async updateOrganizationPlan(
     organizationId: string,
     planId: string,
-    updatePlanDto: UpdatePlanDto,
+    updatePlanDto: UpdateOrgPlanDto,
   ) {
     const plan = await this.organizationPlanRepository.findOne({
       where: {
@@ -451,11 +471,11 @@ export class PlansService {
     // Prevent critical changes if there are active subscriptions
     if (hasActiveSubscriptions) {
       if (
-        updatePlanDto.amount !== undefined &&
-        updatePlanDto.amount !== plan.price
+        updatePlanDto.price !== undefined &&
+        updatePlanDto.price !== plan.price
       ) {
         throw new BadRequestException(
-          'Cannot change plan amount while there are active subscriptions. Create a new plan instead.',
+          'Cannot change plan price while there are active subscriptions. Create a new plan instead.',
         );
       }
 

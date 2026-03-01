@@ -11,6 +11,10 @@ import { OrganizationUser } from '../../database/entities/organization-user.enti
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { OrgRole } from 'src/common/enums/enums';
 import { User } from 'src/database/entities/user.entity';
+import { CheckInDto, MemberPaginationDto } from './members.controller';
+import { PlanLimitService } from '../plans/plans-limit.service';
+import { Organization } from 'src/database/entities';
+import { PaginationDto, paginate } from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class MembersService {
@@ -23,10 +27,18 @@ export class MembersService {
 
     @InjectRepository(OrganizationUser)
     private orgUserRepository: Repository<OrganizationUser>,
+
+    @InjectRepository(Organization)
+    private orgRepository: Repository<Organization>,
+
+    private planLimitService: PlanLimitService,
   ) {}
 
-  async findAll(organizationId: string, search?: string): Promise<Member[]> {
-    const queryBuilder = this.memberRepository
+  async findAll(organizationId: string, paginationDto: MemberPaginationDto) {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    let queryBuilder = this.memberRepository
       .createQueryBuilder('member')
       .leftJoinAndSelect('member.user', 'user')
       .leftJoinAndSelect('member.subscriptions', 'subscriptions')
@@ -36,20 +48,18 @@ export class MembersService {
         organizationId,
       });
 
-    if (search) {
-      queryBuilder.andWhere(
-        new Brackets((qb) => {
-          qb.where('member.emergency_contact_name ILIKE :search', {
-            search: `%${search}%`,
-          })
-            .orWhere('user.email ILIKE :search', { search: `%${search}%` })
-            .orWhere('user.first_name ILIKE :search', { search: `%${search}%` })
-            .orWhere('user.last_name ILIKE :search', { search: `%${search}%` });
-        }),
-      );
+    let memberData: Member[];
+    if (paginationDto.status !== 'all') {
+      queryBuilder.skip(skip).take(limit);
+      memberData = await queryBuilder.getMany();
+    } else {
+      memberData = await queryBuilder.getMany();
     }
 
-    return queryBuilder.getMany();
+    return {
+      message: 'Members retrieved successfully',
+      data: { ...paginate(memberData, memberData.length, page, limit) },
+    };
   }
 
   async findOne(userId: string): Promise<User> {
@@ -149,10 +159,59 @@ export class MembersService {
     return members;
   }
 
-  async checkInMember(memberId: string, checkInCode: string) {
+  async checkInCode(checkInData: CheckInDto) {
     // Find the member
     const member = await this.memberRepository.findOne({
-      where: { id: memberId },
+      where: {
+        id: checkInData.memberId,
+      },
+      relations: ['user'],
+    });
+
+    if (!member) {
+      throw new NotFoundException('Member not found');
+    }
+
+    // Update check-in information
+    member.check_in_code = checkInData.checkInCode;
+
+    // Save the updated member
+    await this.memberRepository.save(member);
+    return {
+      success: true,
+      message: 'Check-in code updated successfully',
+      data: {
+        memberId: member.id,
+        fullName: `${member.user.first_name} ${member.user.last_name}`,
+        checkInCount: member.check_in_count,
+        checkInCode: member.check_in_code,
+      },
+    };
+  }
+
+  async checkInMember(organizationId: string, checkInData: CheckInDto) {
+    // Find the organization
+    const organization = await this.orgRepository.findOne({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    // Check if the organization has access to check-in
+    await this.planLimitService.assertCanUseCheckInService(
+      organization.enterprise_plan,
+    );
+
+    // Find the member
+    const member = await this.memberRepository.findOne({
+      where: {
+        id: checkInData.memberId,
+        organization_user: {
+          organization_id: organizationId,
+        },
+      },
       relations: ['user'],
     });
 
@@ -160,9 +219,18 @@ export class MembersService {
       throw new NotFoundException('Member not found');
     }
     // Verify check-in code
-    if (member.check_in_code !== checkInCode) {
+    if (member.check_in_code !== checkInData.checkInCode) {
       throw new BadRequestException('Invalid check-in code');
     }
+
+    // Avoid incrementing count twice in a day
+    if (
+      member.checked_in_at &&
+      member.checked_in_at.toDateString() === new Date().toDateString()
+    ) {
+      throw new BadRequestException('Member has already checked in today');
+    }
+
     // Update check-in information
     member.check_in_count += 1;
     member.checked_in_at = new Date();
@@ -177,6 +245,7 @@ export class MembersService {
         fullName: `${member.user.first_name} ${member.user.last_name}`,
         checkInCount: member.check_in_count,
         checkedInAt: member.checked_in_at,
+        checkInCode: member.check_in_code,
       },
     };
   }

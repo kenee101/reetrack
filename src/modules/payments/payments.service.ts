@@ -3,6 +3,8 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -60,6 +62,8 @@ export class PaymentsService {
 
     private paystackService: PaystackService,
     private configService: ConfigService,
+
+    @Inject(forwardRef(() => NotificationsService))
     private notificationsService: NotificationsService,
   ) {}
 
@@ -120,14 +124,18 @@ export class PaymentsService {
     }
 
     // Initialize Paystack transaction
-    const amountInKobo = this.paystackService.convertToKobo(invoice.amount);
+    const amountInSubUnit = this.paystackService.convertToSubUnit(
+      invoice.amount,
+    );
+    const currency = invoice.currency;
     const callbackUrl = `${this.configService.get('frontend.url')}/member/dashboard`;
     const subaccount = organization.paystack_subaccount_code;
     console.log('callbackUrl', callbackUrl);
 
     const paystackResponse = await this.paystackService.initializeTransaction(
       invoice.billed_user.email,
-      amountInKobo,
+      amountInSubUnit,
+      currency,
       reference,
       {
         payment_id: savedPayment.id,
@@ -202,13 +210,17 @@ export class PaymentsService {
     const savedPayment = await this.paymentRepository.save(payment);
 
     // Initialize Paystack transaction
-    const amountInKobo = this.paystackService.convertToKobo(invoice.amount);
+    const amountInSubUnit = this.paystackService.convertToSubUnit(
+      invoice.amount,
+    );
+    const currency = invoice.currency;
     const callbackUrl = `${this.configService.get('frontend.url')}/organization/dashboard`;
     console.log('callbackUrl', callbackUrl);
 
     const paystackResponse = await this.paystackService.initializeTransaction(
       invoice.billed_user.email,
-      amountInKobo,
+      amountInSubUnit,
+      currency,
       reference,
       {
         payment_id: savedPayment.id,
@@ -370,7 +382,7 @@ export class PaymentsService {
       data: {
         payment_id: payment.id,
         status: payment.status,
-        amount: this.paystackService.convertToNaira(data.amount),
+        amount: this.paystackService.convertToMainUnit(data.amount),
         reference: data.reference,
         paid_at: data.paid_at,
         channel: data.channel,
@@ -380,7 +392,6 @@ export class PaymentsService {
   }
 
   async createSubaccount(
-    userId: string,
     organizationId: string,
     createSubaccountDto: CreateSubaccountDto,
   ) {
@@ -396,15 +407,15 @@ export class PaymentsService {
       await this.paystackService.createSubaccount(createSubaccountDto);
 
     organization.paystack_subaccount_code = data.subaccount_code;
+    organization.bank = data.settlement_bank;
+    organization.account_number = data.account_number;
     await this.organizationRepository.save(organization);
 
     return data;
   }
 
   async updateSubaccount(
-    userId: string,
     organizationId: string,
-    subaccountCode: string,
     updateData: Partial<CreateSubaccountDto>,
   ) {
     const organization = await this.organizationRepository.findOne({
@@ -415,12 +426,18 @@ export class PaymentsService {
       throw new NotFoundException('Organization not found');
     }
 
+    if (!organization.paystack_subaccount_code) {
+      throw new NotFoundException('Subaccount not found');
+    }
+
     const data = await this.paystackService.updateSubaccount(
-      subaccountCode,
+      organization.paystack_subaccount_code,
       updateData,
     );
 
     organization.paystack_subaccount_code = data.subaccount_code;
+    organization.bank = data.settlement_bank;
+    organization.account_number = data.account_number;
     await this.organizationRepository.save(organization);
 
     return data;
@@ -436,8 +453,8 @@ export class PaymentsService {
       throw new NotFoundException('Subscription not found');
     }
 
-    if (subscription.canceled_at) {
-      throw new BadRequestException('Subscription is canceled');
+    if (subscription.cancelled_at) {
+      throw new BadRequestException('Subscription is cancelled');
     }
 
     const invoice = await this.invoiceRepository.findOne({
@@ -487,12 +504,14 @@ export class PaymentsService {
 
     // Charge the saved card
     try {
-      const amountInKobo = this.paystackService.convertToKobo(invoice.amount);
+      const amountInSubUnit = this.paystackService.convertToSubUnit(
+        invoice.amount,
+      );
 
       const result = await this.paystackService.chargeAuthorization(
         orgUser.paystack_authorization_code,
         subscription.member.user.email,
-        amountInKobo,
+        amountInSubUnit,
         reference,
         {
           payment_id: payment.id,
@@ -563,7 +582,7 @@ export class PaymentsService {
 
     return {
       message: 'Payments retrieved successfully',
-      ...paginate(payments, total, page, limit),
+      data: { ...paginate(payments, total, page, limit) },
     };
   }
 
@@ -643,7 +662,7 @@ export class PaymentsService {
 
     return {
       message: 'Member payments retrieved successfully',
-      ...paginate(payments, total, page, limit),
+      data: { ...paginate(payments, total, page, limit) },
     };
   }
 
@@ -700,11 +719,11 @@ export class PaymentsService {
     return {
       message: 'Payment stats retrieved successfully',
       data: {
-        total_payments: totalPayments,
-        successful_payments: successfulPayments,
-        failed_payments: failedPayments,
-        pending_payments: pendingPayments,
-        total_revenue: parseFloat(totalRevenue[0].total),
+        total_member_payments: totalPayments,
+        successful_member_payments: successfulPayments,
+        failed_member_payments: failedPayments,
+        pending_member_payments: pendingPayments,
+        total_member_revenue: parseFloat(totalRevenue[0].total),
         total_expenses: parseFloat(totalExpenses[0].total),
         success_rate:
           totalPayments > 0

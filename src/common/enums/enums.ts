@@ -1,6 +1,6 @@
 export enum SubscriptionStatus {
   ACTIVE = 'active',
-  CANCELED = 'canceled',
+  CANCELLED = 'cancelled',
   EXPIRED = 'expired',
   PENDING = 'pending',
   FAILED = 'failed',
@@ -42,6 +42,12 @@ export enum OrgRole {
   MEMBER = 'MEMBER',
 }
 
+export enum OrgPlans {
+  BASIC = 'BASIC',
+  PLATINUM = 'PLATINUM',
+  GOLD = 'GOLD',
+}
+
 export enum PlanInterval {
   MONTHLY = 'monthly',
   YEARLY = 'yearly',
@@ -77,4 +83,17 @@ export enum Currency {
   EUR = 'EUR',
   GBP = 'GBP',
   ZAR = 'ZAR',
+}
+
+export enum EmailStatus {
+  PENDING = 'PENDING', // Queued but not sent yet
+  SENT = 'SENT', // Successfully delivered to provider
+  FAILED = 'FAILED', // Provider rejected or errored
+  DELIVERED = 'DELIVERED', // Provider confirmed delivery (if webhooks supported)
+  BOUNCED = 'BOUNCED', // Recipient address doesn't exist
+}
+
+export enum EmailType {
+  CUSTOM = 'CUSTOM', // Manually sent by org admin counts toward limit
+  SYSTEM = 'SYSTEM', // Automated system emails does NOT count toward limit
 }

@@ -23,6 +23,7 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { CreateSubaccountDto } from './dto/create-subaccount.dto';
 import { PaystackService } from './paystack.service';
+import { RolesGuard } from 'src/common/guards/roles.guard';
 
 class PaymentStatusDto extends PaginationDto {
   @ApiPropertyOptional({
@@ -37,17 +38,17 @@ class PaymentStatusDto extends PaginationDto {
 @Controller('payments')
 @ApiBearerAuth('JWT-auth')
 @Throttle({ short: { limit: 20, ttl: 60000 } })
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly paystackService: PaystackService,
   ) {}
 
-  @Post('/paystack/initialize')
   @ApiOperation({ summary: 'Initialize a payment' })
   @ApiResponse({ status: 200, description: 'Payment initialized successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
+  @Post('/paystack/initialize')
   initializePayment(
     @CurrentUser() user: any,
     @Body() initializePaymentDto: InitializePaymentDto,
@@ -58,10 +59,10 @@ export class PaymentsController {
     );
   }
 
-  @Post('/paystack/organization/initialize')
   @ApiOperation({ summary: 'Initialize a payment' })
   @ApiResponse({ status: 200, description: 'Payment initialized successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
+  @Post('/paystack/organization/initialize')
   initializeOrganizationPayment(
     @CurrentUser() user: any,
     @CurrentOrganization() organizationId: string,
@@ -73,10 +74,10 @@ export class PaymentsController {
     );
   }
 
-  @Get('/paystack/verify/:reference')
   @ApiOperation({ summary: 'Verify a payment' })
   @ApiResponse({ status: 200, description: 'Payment verified successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
+  @Get('/paystack/verify/:reference')
   verifyPayment(
     @CurrentOrganization() organizationId: string,
     @Param('reference') reference: string,
@@ -84,18 +85,16 @@ export class PaymentsController {
     return this.paymentsService.verifyPayment(organizationId, reference);
   }
 
-  @Post('paystack/subaccount')
   @Roles(OrgRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new subaccount' })
   @ApiResponse({ status: 201, description: 'Subaccount created successfully' })
+  @Post('paystack/subaccount')
   async createSubaccount(
-    @CurrentUser() user: any,
     @CurrentOrganization() organizationId: string,
     @Body() createSubaccountDto: CreateSubaccountDto,
   ) {
     const subaccount = await this.paymentsService.createSubaccount(
-      user.id,
       organizationId,
       createSubaccountDto,
     );
@@ -106,21 +105,17 @@ export class PaymentsController {
     };
   }
 
-  @Put('paystack/subaccounts/:subaccountCode')
   @Roles(OrgRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a subaccount' })
   @ApiResponse({ status: 200, description: 'Subaccount updated successfully' })
+  @Put('paystack/subaccounts')
   async updateSubaccount(
-    @CurrentUser() user: any,
     @CurrentOrganization() organizationId: string,
-    @Param('subaccountCode') subaccountCode: string,
     @Body() updateData: Partial<CreateSubaccountDto>,
   ) {
     const subaccount = await this.paymentsService.updateSubaccount(
-      user.id,
       organizationId,
-      subaccountCode,
       updateData,
     );
     return {
@@ -130,10 +125,10 @@ export class PaymentsController {
     };
   }
 
-  @Get()
   @ApiOperation({ summary: 'Get all payments' })
   @ApiResponse({ status: 200, description: 'Payments retrieved successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
+  @Get()
   findAll(
     @CurrentOrganization() organizationId: string,
     @Query() paginationDto: PaymentStatusDto,
@@ -145,7 +140,6 @@ export class PaymentsController {
     );
   }
 
-  @Post('other')
   @Roles(OrgRole.ADMIN, OrgRole.STAFF)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a manual payment record' })
@@ -153,6 +147,7 @@ export class PaymentsController {
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
+  @Post('other')
   async createManualPayment(
     @CurrentOrganization() organizationId: string,
     @Body() createPaymentDto: CreatePaymentDto,
@@ -163,24 +158,24 @@ export class PaymentsController {
     );
   }
 
-  @Get('stats')
   @ApiOperation({ summary: 'Get payment stats' })
   @ApiResponse({
     status: 200,
     description: 'Payment stats retrieved successfully',
   })
   @ApiResponse({ status: 500, description: 'Internal server error' })
+  @Get('stats')
   getStats(@CurrentOrganization() organizationId: string) {
     return this.paymentsService.getMemberPaymentStats(organizationId);
   }
 
-  @Get('member')
   @ApiOperation({ summary: 'Get member payments' })
   @ApiResponse({
     status: 200,
     description: 'Member payments retrieved successfully',
   })
   @ApiResponse({ status: 500, description: 'Internal server error' })
+  @Get('member')
   getMemberPayments(
     @CurrentUser() user: any,
     @Query() paginationDto: PaginationDto,
@@ -188,10 +183,10 @@ export class PaymentsController {
     return this.paymentsService.getPaymentsByMember(user.id, paginationDto);
   }
 
-  @Get(':paymentId')
   @ApiOperation({ summary: 'Get a payment by ID' })
   @ApiResponse({ status: 200, description: 'Payment retrieved successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
+  @Get(':paymentId')
   findOne(
     @CurrentOrganization() organizationId: string,
     @Param('paymentId') paymentId: string,

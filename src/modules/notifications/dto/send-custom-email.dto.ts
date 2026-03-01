@@ -1,4 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsArray,
+  ArrayNotEmpty,
+  IsEmail,
+  IsString,
+  IsObject,
+  MinLength,
+} from 'class-validator';
 
 export class SendCustomEmailDto {
   @ApiProperty({
@@ -6,30 +14,28 @@ export class SendCustomEmailDto {
     example: ['user1@example.com', 'user2@example.com'],
     isArray: true,
   })
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsEmail({}, { each: true })
   to: string[];
 
   @ApiProperty({
     description: 'Email subject',
     example: 'Important Update About Your Subscription',
   })
+  @IsString()
+  @MinLength(1)
   subject: string;
-
-  @ApiProperty({
-    description: 'Name of the email template to use',
-    example: 'event_notification',
-  })
-  template: string;
 
   @ApiProperty({
     description: 'Context variables for the email template',
     example: {
-      eventName: 'Annual Conference',
-      eventDate: '2025-03-15',
-      eventLocation: 'Virtual',
+      content: 'Hello, this is a custom email.',
       additionalNotes: 'Please join us for our annual conference.',
     },
     type: 'object',
     additionalProperties: true,
   })
+  @IsObject()
   context: Record<string, any>;
 }

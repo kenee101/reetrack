@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { EmailService } from './email.service';
 import { SmsService } from './sms.service';
@@ -6,9 +6,15 @@ import { NotificationsController } from './notifications.controller';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Organization } from 'src/database/entities';
+import { PlansModule } from '../plans/plans.module';
+import { Email } from 'src/database/entities/email.entity';
 
 @Module({
-  imports: [ConfigModule, TypeOrmModule.forFeature([Organization])],
+  imports: [
+    ConfigModule,
+    forwardRef(() => PlansModule),
+    TypeOrmModule.forFeature([Organization, Email]),
+  ],
   providers: [NotificationsService, EmailService, SmsService],
   exports: [NotificationsService],
   controllers: [NotificationsController],

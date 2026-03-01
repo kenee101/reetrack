@@ -20,9 +20,11 @@ import {
 import { NotificationsService } from '../notifications/notifications.service';
 import Stripe from 'stripe';
 import {
+  Organization,
   OrganizationSubscription,
   OrganizationUser,
 } from 'src/database/entities';
+import { PlanLimitService } from '../plans/plans-limit.service';
 
 @Injectable()
 export class WebhooksService {
@@ -43,18 +45,23 @@ export class WebhooksService {
     @InjectRepository(OrganizationUser)
     private organizationUserRepository: Repository<OrganizationUser>,
 
+    @InjectRepository(Organization)
+    private organizationRepository: Repository<Organization>,
+
     @InjectRepository(MemberSubscription)
     private memberSubscriptionRepository: Repository<MemberSubscription>,
 
-    @Inject('STRIPE') private readonly stripe: Stripe,
+    // @Inject('STRIPE') private readonly stripe: Stripe,
 
     private configService: ConfigService,
     private notificationsService: NotificationsService,
+    private planLimitService: PlanLimitService,
   ) {
-    this.paystackWebhookSecret = this.configService.get(
-      'paystack.testSecretKey',
-    );
-    this.stripeWebhookSecret = this.configService.get('stripe.webhookSecret');
+    this.paystackWebhookSecret =
+      this.configService.get('app.nodeEnv') === 'production'
+        ? this.configService.get('paystack.secretKey')
+        : this.configService.get('paystack.testSecretKey');
+    // this.stripeWebhookSecret = this.configService.get('stripe.webhookSecret');
   }
 
   verifyPaystackSignature(payload: string, signature: string): boolean {
@@ -72,11 +79,13 @@ export class WebhooksService {
     try {
       switch (event.event) {
         case 'charge.success':
-          await this.handleChargeSuccess(event.data);
+          // Process asynchronously to avoid timeout
+          this.processChargeSuccessAsync(event.data);
           break;
 
         case 'charge.failed':
-          await this.handleChargeFailed(event.data);
+          // Process asynchronously to avoid timeout
+          this.processChargeFailedAsync(event.data);
           break;
 
         case 'invoice.create':
@@ -91,21 +100,39 @@ export class WebhooksService {
 
         case 'transfer.success':
           this.logger.log('Transfer successful');
-          break;
-
-        case 'transfer.failed':
-          this.logger.log('Transfer failed');
+          console.log(event.data);
           break;
 
         default:
-          this.logger.warn(`Unhandled webhook event: ${event.event}`);
+          this.logger.log(`Unhandled Paystack event: ${event.event}`);
       }
 
-      return { status: 'success', message: 'Webhook processed' };
+      // Return immediately to acknowledge webhook
+      return { status: 'received', event: event.event };
+    } catch (error) {
+      this.logger.error(`Error processing Paystack webhook: ${error.message}`);
+      // Still return success to avoid retries, but log error
+      return { status: 'error', error: error.message };
+    }
+  }
+
+  // Async processing methods to avoid webhook timeout
+  private async processChargeSuccessAsync(data: any) {
+    try {
+      await this.handleChargeSuccess(data);
     } catch (error) {
       this.logger.error(
-        `Webhook processing error: ${error.message}`,
-        error.stack,
+        `Error in async charge success processing: ${error.message}`,
+      );
+    }
+  }
+
+  private async processChargeFailedAsync(data: any) {
+    try {
+      await this.handleChargeFailed(data);
+    } catch (error) {
+      this.logger.error(
+        `Error in async charge failed processing: ${error.message}`,
       );
       throw error;
     }
@@ -119,7 +146,7 @@ export class WebhooksService {
       where: { provider_reference: data.reference },
       relations: [
         'invoice.member_subscription',
-        'invoice.organization_subscription',
+        'invoice.organization_subscription.plan',
         'payer_user',
       ],
     });
@@ -200,6 +227,29 @@ export class WebhooksService {
       // If invoice is linked to an organization subscription, ensure it's active
       if (payment.invoice.organization_subscription) {
         const subscription = payment.invoice.organization_subscription;
+
+        // Get the organization
+        const organization = await this.organizationRepository.findOne({
+          where: { id: subscription.organization_id },
+        });
+
+        // if(!organization) {
+        //   throw new Error(`Organization ${subscription.organization_id} not found`);
+        // }
+
+        // Update the current plan and the transaction fee
+        if (organization) {
+          organization.enterprise_plan =
+            payment.invoice.organization_subscription.plan.name;
+          await this.organizationRepository.save(organization);
+
+          if (organization.paystack_subaccount_code) {
+            await this.planLimitService.updateTransactionFees(
+              organization.id,
+              payment.invoice.organization_subscription.plan.name,
+            );
+          }
+        }
 
         if (
           subscription.status === SubscriptionStatus.EXPIRED ||
@@ -313,7 +363,7 @@ export class WebhooksService {
 
     const payment = await this.paymentRepository.findOne({
       where: { provider_reference: data.reference },
-      relations: ['invoice', 'invoice.member_subscription', 'payer_user'],
+      relations: ['invoice.member_subscription', 'payer_user'],
     });
 
     if (!payment) {
@@ -373,6 +423,12 @@ export class WebhooksService {
       case 'yearly':
         date.setFullYear(date.getFullYear() + intervalCount);
         break;
+      case 'quarterly':
+        date.setMonth(date.getMonth() + 3 * intervalCount);
+        break;
+      case 'biweekly':
+        date.setDate(date.getDate() + 14 * intervalCount);
+        break;
     }
 
     return date;
@@ -409,8 +465,8 @@ export class WebhooksService {
   //         await this.handlePaymentIntentFailed(event.data.object);
   //         break;
 
-  //       case 'payment_intent.canceled':
-  //         await this.handlePaymentIntentCanceled(
+  //       case 'payment_intent.cancelled':
+  //         await this.handlePaymentIntentCancelled(
   //           event.data.object as Stripe.PaymentIntent,
   //         );
   //         break;
@@ -651,10 +707,10 @@ export class WebhooksService {
   //   this.logger.log(`Payment ${payment.id} marked as failed`);
   // }
 
-  // private async handlePaymentIntentCanceled(
+  // private async handlePaymentIntentCancelled(
   //   paymentIntent: Stripe.PaymentIntent,
   // ) {
-  //   this.logger.log(`Payment canceled: ${paymentIntent.id}`);
+  //   this.logger.log(`Payment cancelled: ${paymentIntent.id}`);
 
   //   const payment = await this.paymentRepository.findOne({
   //     where: { provider_reference: paymentIntent.id },
@@ -664,8 +720,8 @@ export class WebhooksService {
   //     payment.status = PaymentStatus.FAILED;
   //     payment.metadata = {
   //       ...payment.metadata,
-  //       canceled: true,
-  //       canceled_at: new Date().toISOString(),
+  //       cancelled: true,
+  //       cancelled_at: new Date().toISOString(),
   //     };
   //     await this.paymentRepository.save(payment);
   //   }

@@ -28,6 +28,7 @@ import type { Request, Response } from 'express';
 import { UserRegisterDto } from 'src/common/dto/user-register.dto';
 import { CustomRegisterDto } from './auth.controller';
 import { InvitationsService } from '../invitations/invitations.service';
+import { PlanLimitService } from '../plans/plans-limit.service';
 
 interface RegisterOrgResponse {
   message: string;
@@ -65,18 +66,32 @@ export class AuthService {
     private configService: ConfigService,
     private notificationsService: NotificationsService,
     private invitationsService: InvitationsService,
+    private planLimitService: PlanLimitService,
   ) {}
 
   async registerOrganization(
     registerDto: RegisterDto,
   ): Promise<RegisterOrgResponse> {
+    // Check if user email exists
+    const existingUser = await this.userRepository.findOne({
+      where: { email: registerDto.email },
+    });
+
+    if (!existingUser) {
+      throw new NotFoundException(
+        'User email not found. Please register an account with us.',
+      );
+    }
+
     // Check if organization email exists
     const existingOrg = await this.organizationRepository.findOne({
       where: { email: registerDto.organizationEmail },
     });
 
     if (existingOrg) {
-      throw new ConflictException('Organization email already exists');
+      throw new ConflictException(
+        'Organization email already exists. Please use a different email.',
+      );
     }
 
     // Generate unique slug
@@ -92,15 +107,6 @@ export class AuthService {
 
     const savedOrg = await this.organizationRepository.save(organization);
 
-    // Check if user email exists
-    const existingUser = await this.userRepository.findOne({
-      where: { email: registerDto.email },
-    });
-
-    if (!existingUser) {
-      throw new NotFoundException('User not found!');
-    }
-
     // Create organization_user with ADMIN role
     const orgUser = this.organizationUserRepository.create({
       user_id: existingUser.id,
@@ -111,12 +117,12 @@ export class AuthService {
 
     const savedOrgUser = await this.organizationUserRepository.save(orgUser);
 
-    // Send welcome email
-    // await this.notificationsService.sendWelcomeEmail({
-    //   email: existingUser.email,
-    //   userName: `${existingUser.first_name} ${existingUser.last_name}`,
-    //   organizationName: savedOrg.name,
-    // });
+    // Send welcome email to organization
+    await this.notificationsService.sendOrganizationRegisterEmail({
+      userEmail: existingUser.email,
+      userName: `${existingUser.first_name} ${existingUser.last_name}`,
+      organizationName: savedOrg.name,
+    });
 
     return {
       message: 'Organization and admin user created successfully',
@@ -204,21 +210,37 @@ export class AuthService {
       throw new NotFoundException('Organization not found');
     }
 
-    // Check if user email exists
-    let user = await this.userRepository.findOne({
-      where: { email: memberRegisterDto.email },
-    });
+    // Process each email in the array
+    const results: {
+      email: string;
+      status: string;
+      userExists: boolean;
+    }[] = [];
 
-    // Send registration email
-    await this.notificationsService.sendMemberRegisterEmail({
-      email: user?.email || memberRegisterDto.email,
-      userName: user ? `${user.first_name} ${user.last_name}` : undefined,
-      organizationName: organization.name,
-      joinToken: organization.slug,
-    });
+    for (const email of memberRegisterDto.email) {
+      // Check if user email exists
+      let user = await this.userRepository.findOne({
+        where: { email },
+      });
+
+      // Send registration email
+      await this.notificationsService.sendMemberRegisterEmail({
+        email: user?.email || email,
+        userName: user ? `${user.first_name} ${user.last_name}` : undefined,
+        organizationName: organization.name,
+        joinToken: organization.slug,
+      });
+
+      results.push({
+        email,
+        status: 'sent',
+        userExists: !!user,
+      });
+    }
 
     return {
-      message: 'Registration sent successfully',
+      message: 'Registration emails sent successfully',
+      results,
     };
   }
 
@@ -293,26 +315,40 @@ export class AuthService {
       throw new NotFoundException('Organization not found');
     }
 
-    // Check if user email exists
-    let user = await this.userRepository.findOne({
-      where: { email: staffRegisterDto.email },
-    });
-
-    const data = await this.invitationsService.createInvitation(
-      organization,
+    await this.planLimitService.assertCanAddStaff(
+      organizationId,
+      organization.enterprise_plan,
       staffRegisterDto.email,
     );
 
-    // Send registration email
-    await this.notificationsService.sendStaffRegisterEmail({
-      email: user?.email || staffRegisterDto.email,
-      userName: user ? `${user.first_name} ${user.last_name}` : undefined,
-      organizationName: organization.name,
-      joinToken: data.token,
-    });
+    // Process each email in the array using bulk invitation method
+    const invitationResults =
+      await this.invitationsService.createBulkInvitations(
+        organization,
+        staffRegisterDto.email,
+      );
+
+    // Send emails for newly created invitations
+    for (const result of invitationResults) {
+      if (result.status === 'created') {
+        // Check if user exists for email
+        const user = await this.userRepository.findOne({
+          where: { email: result.email },
+        });
+
+        // Send registration email
+        await this.notificationsService.sendStaffRegisterEmail({
+          email: result.email,
+          userName: user ? `${user.first_name} ${user.last_name}` : undefined,
+          organizationName: organization.name,
+          joinToken: result.invitationToken,
+        });
+      }
+    }
 
     return {
-      message: 'Registration sent successfully',
+      message: 'Staff registration process completed',
+      results: invitationResults,
     };
   }
 
@@ -417,6 +453,7 @@ export class AuthService {
           email: orgUser.organization.email,
           role: orgUser.role,
           status: orgUser.status,
+          slug: orgUser.organization.slug,
         })),
         access_token: accessToken,
         refresh_token: refreshToken,
@@ -431,15 +468,14 @@ export class AuthService {
     //   secure: process.env.NODE_ENV === 'production',
     //   sameSite: 'lax',
     //   maxAge: 15 * 60 * 1000, // 15 minutes
-    //   path: '/',
     // });
     // Refresh token cookie (longer-lived)
     response.cookie('refresh_token', tokens.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/api/v1/auth/refresh', // Only sent to refresh endpoint
+      maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
+      // path: '/api/v1/auth/refresh', // Only sent to refresh endpoint
     });
   }
 
@@ -449,15 +485,15 @@ export class AuthService {
     role: string | null,
     currentOrganizationId: string | null,
   ) {
-    const storedToken = await this.refreshTokenRepository.findOne({
-      where: { token: oldRefreshToken, is_revoked: false },
-    });
+    // const storedToken = await this.refreshTokenRepository.findOne({
+    //   where: { token: oldRefreshToken, is_revoked: false },
+    // });
 
-    if (!storedToken) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
+    // if (!storedToken) {
+    //   throw new UnauthorizedException('Invalid refresh token');
+    // }
 
-    // Get user and their primary org_user
+    // Get user
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
@@ -466,26 +502,26 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const orgUser = await this.organizationUserRepository.findOne({
-      where: { user_id: userId },
-      relations: ['organization'],
-    });
+    // const orgUser = await this.organizationUserRepository.findOne({
+    //   where: { user_id: userId },
+    //   relations: ['organization'],
+    // });
 
-    if (!orgUser) {
-      throw new UnauthorizedException('No organization access');
-    }
+    // if (!orgUser) {
+    //   throw new UnauthorizedException('No organization access');
+    // }
 
     // Revoke old token
-    storedToken.is_revoked = true;
-    await this.refreshTokenRepository.save(storedToken);
+    // storedToken.is_revoked = true;
+    // await this.refreshTokenRepository.save(storedToken);
 
     // Generate new tokens
     const { accessToken, refreshToken } = await this.generateTokens(
       user,
       currentOrganizationId,
       role,
-      storedToken.ip_address,
-      storedToken.user_agent,
+      // storedToken.ip_address,
+      // storedToken.user_agent,
     );
 
     return {
@@ -550,8 +586,14 @@ export class AuthService {
         name: orgUser.organization.name,
         email: orgUser.organization.email,
         role: orgUser.role,
+        slug: orgUser.organization.slug,
         address: orgUser.organization.address,
         website: orgUser.organization.website,
+        phone: orgUser.organization.phone,
+        description: orgUser.organization.description,
+        bank: orgUser.organization.bank,
+        account_number: orgUser.organization.account_number,
+        enterprise_plan: orgUser.organization.enterprise_plan,
       })),
     };
   }
@@ -646,22 +688,22 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 1); // 1 day
 
-    type TokenData = Pick<
-      RefreshToken,
-      'user_id' | 'token' | 'expires_at' | 'ip_address' | 'user_agent'
-    >;
+    // type TokenData = Pick<
+    //   RefreshToken,
+    //   'user_id' | 'token' | 'expires_at' | 'ip_address' | 'user_agent'
+    // >;
 
-    const tokenInstance: TokenData = {
-      user_id: user.id,
-      token: refreshToken,
-      expires_at: expiresAt,
-      ip_address: ipAddress || null,
-      user_agent: userAgent || null,
-    };
+    // const tokenInstance: TokenData = {
+    //   user_id: user.id,
+    //   token: refreshToken,
+    //   expires_at: expiresAt,
+    //   ip_address: ipAddress || null,
+    //   user_agent: userAgent || null,
+    // };
 
-    const tokenEntity = this.refreshTokenRepository.create(tokenInstance);
+    // const tokenEntity = this.refreshTokenRepository.create(tokenInstance);
 
-    await this.refreshTokenRepository.save(tokenEntity);
+    // await this.refreshTokenRepository.save(tokenEntity);
 
     return { accessToken, refreshToken };
   }
