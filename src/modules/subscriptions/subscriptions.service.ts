@@ -515,6 +515,19 @@ export class SubscriptionsService {
       throw new NotFoundException('Subscription not found');
     }
 
+    const paidInvoice = await this.invoiceRepository.findOne({
+      where: {
+        member_subscription_id: subscriptionId,
+        status: InvoiceStatus.PAID,
+      },
+    });
+
+    if (!paidInvoice) {
+      throw new BadRequestException(
+        'No paid invoice found for this subscription',
+      );
+    }
+
     subscription.auto_renew = true;
     subscription.status = SubscriptionStatus.ACTIVE;
     subscription.cancelled_at = null;

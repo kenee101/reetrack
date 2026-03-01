@@ -16,6 +16,7 @@ import { Currency, InvoiceStatus } from 'src/common/enums/enums';
 import { InvoiceBilledType } from 'src/common/enums/enums';
 import { Organization, OrganizationSubscription } from 'src/database/entities';
 import { CreateOrganizationInvoiceDto } from './dto/create-organization-invoice.dto';
+import { InvoicePaginationDto } from './invoices.controller';
 
 @Injectable()
 export class InvoicesService {
@@ -93,19 +94,19 @@ export class InvoicesService {
   }
 
   async findAllMemberInvoices(
-    organizationId: string,
-    paginationDto: PaginationDto,
-    status?: string,
+    userId: string,
+    paginationDto: InvoicePaginationDto,
   ) {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
     const whereCondition: any = {
-      issuer_org_id: organizationId,
+      billed_user_id: userId,
       billed_type: InvoiceBilledType.MEMBER,
     };
-    if (status) {
-      whereCondition.status = status;
+
+    if (paginationDto.status) {
+      whereCondition.status = paginationDto.status;
     }
 
     const [invoices, total] = await this.invoiceRepository.findAndCount({
@@ -122,11 +123,11 @@ export class InvoicesService {
     };
   }
 
-  async findMemberInvoice(organizationId: string, invoiceId: string) {
+  async findMemberInvoice(userId: string, invoiceId: string) {
     const invoice = await this.invoiceRepository.findOne({
       where: {
         id: invoiceId,
-        issuer_org_id: organizationId,
+        billed_user_id: userId,
       },
       relations: ['billed_user', 'member_subscription', 'payments'],
     });

@@ -22,8 +22,9 @@ import {
 import { IsOptional, IsString } from 'class-validator';
 import { CreateOrganizationInvoiceDto } from './dto/create-organization-invoice.dto';
 import { Invoice } from 'src/database/entities/invoice.entity';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
-class StatusDto {
+export class InvoicePaginationDto extends PaginationDto {
   @ApiPropertyOptional({
     description: 'Invoice status',
     enum: ['pending', 'paid', 'cancelled', 'failed'],
@@ -61,21 +62,12 @@ export class InvoicesController {
   @ApiResponse({ status: 200, description: 'List of member invoices' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll(
-    @CurrentOrganization() organizationId: string,
-    // @Query() paginationDto: PaginationDto,
+    @CurrentUser() user: any,
     @Query()
-    paginationDto: {
-      page?: number;
-      limit?: number;
-    },
-    @Query() statusDto: StatusDto,
+    paginationDto: InvoicePaginationDto,
   ) {
-    console.log('status', statusDto.status);
-    return this.invoicesService.findAllMemberInvoices(
-      organizationId,
-      paginationDto,
-      statusDto.status,
-    );
+    console.log('statInvoicePagination.status', paginationDto.status);
+    return this.invoicesService.findAllMemberInvoices(user.id, paginationDto);
   }
 
   @Get('member/all/stats')
@@ -104,11 +96,8 @@ export class InvoicesController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Not found' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  findOne(
-    @CurrentOrganization() organizationId: string,
-    @Param('invoiceId') id: string,
-  ) {
-    return this.invoicesService.findMemberInvoice(organizationId, id);
+  findOne(@CurrentUser() user: any, @Param('invoiceId') id: string) {
+    return this.invoicesService.findMemberInvoice(user.id, id);
   }
 
   @Patch('member/:invoiceId/mark-paid')

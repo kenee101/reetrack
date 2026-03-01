@@ -18,9 +18,9 @@ export class CreateSubaccountDto {
   bank_code: string;
 
   @IsNumber()
-  @IsNotEmpty()
-  @ApiProperty({ description: 'Percentage charge' })
-  percentage_charge: number = 8.5;
+  @IsOptional()
+  @ApiPropertyOptional({ description: 'Percentage charge' })
+  percentage_charge?: number = 10;
 
   @IsString()
   @IsOptional()

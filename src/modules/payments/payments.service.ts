@@ -33,6 +33,7 @@ import {
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { generateReference } from 'src/common/utils/generatePaymentReference';
 import { CreateSubaccountDto } from './dto/create-subaccount.dto';
+import { PLAN_FEATURES, PlanTier } from 'src/lib/plans';
 
 @Injectable()
 export class PaymentsService {
@@ -403,8 +404,13 @@ export class PaymentsService {
       throw new NotFoundException('Organization not found');
     }
 
-    const data =
-      await this.paystackService.createSubaccount(createSubaccountDto);
+    const limit = PLAN_FEATURES[organization.enterprise_plan].transactionFeePercent;
+    const subaccountDto = {
+      ...createSubaccountDto,
+      percentage_charge: limit,
+    };
+
+    const data = await this.paystackService.createSubaccount(subaccountDto);
 
     organization.paystack_subaccount_code = data.subaccount_code;
     organization.bank = data.settlement_bank;
