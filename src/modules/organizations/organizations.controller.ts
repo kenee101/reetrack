@@ -60,8 +60,9 @@ export class OrganizationsController {
       user.id,
       organizationId,
     );
-    this.authService.setAuthCookies(response, tokens);
-    return tokens;
+    const { accessToken, refreshToken } = tokens;
+    this.authService.setAuthCookies(response, { refreshToken });
+    return { accessToken };
   }
 
   @UseGuards(JwtAuthGuard)

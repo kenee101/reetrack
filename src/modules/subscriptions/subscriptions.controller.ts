@@ -89,6 +89,20 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get a list of member subscriptions' })
+  @ApiResponse({
+    status: 200,
+    description: 'Subscriptions retrieved successfully',
+    type: MemberSubscription,
+  })
+  @ApiResponse({ status: 400, description: 'Bad Request' })
+  @ApiResponse({ status: 404, description: 'Subscription not found' })
+  @Get('/member/subscription')
+  findOne(@CurrentUser() user: any) {
+    return this.subscriptionsService.findOneMemberSubscriptions(user.id);
+  }
+
+  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get a member subscription by ID' })
   @ApiResponse({
     status: 200,
@@ -97,9 +111,15 @@ export class SubscriptionsController {
   })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 404, description: 'Subscription not found' })
-  @Get('/members/subscription')
-  findOne(@CurrentUser() user: any) {
-    return this.subscriptionsService.findOneMemberSubscription(user.id);
+  @Get('/member/:subscriptionId')
+  findOneById(
+    @CurrentUser() user: any,
+    @Param('subscriptionId') subscriptionId: string,
+  ) {
+    return this.subscriptionsService.findOneMemberSubscriptionById(
+      subscriptionId,
+      user.id,
+    );
   }
 
   @ApiBearerAuth('JWT-auth')

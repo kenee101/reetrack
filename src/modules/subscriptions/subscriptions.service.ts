@@ -246,7 +246,7 @@ export class SubscriptionsService {
     };
   }
 
-  async findOneMemberSubscription(userId: string) {
+  async findOneMemberSubscriptions(userId: string) {
     const memberSub = await this.memberRepository.find({
       where: {
         user_id: userId,
@@ -255,6 +255,27 @@ export class SubscriptionsService {
     });
 
     if (!memberSub || memberSub.length === 0) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    return {
+      message: 'Subscription retrieved successfully',
+      data: memberSub,
+    };
+  }
+
+  async findOneMemberSubscriptionById(subscriptionId: string, userId: string) {
+    const memberSub = await this.memberRepository.findOne({
+      where: {
+        user_id: userId,
+        subscriptions: {
+          id: subscriptionId,
+        },
+      },
+      relations: ['subscriptions.plan'],
+    });
+
+    if (!memberSub) {
       throw new NotFoundException('Subscription not found');
     }
 
