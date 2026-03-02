@@ -57,7 +57,9 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get all member subscriptions' })
+  @ApiOperation({
+    summary: 'Get all members subscriptions for the organization purpose',
+  })
   @ApiResponse({
     status: 200,
     description: 'Subscriptions retrieved successfully',

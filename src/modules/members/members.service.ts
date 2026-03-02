@@ -148,7 +148,7 @@ export class MembersService {
       where: {
         user_id: userId,
       },
-      relations: ['user', 'organization_user.organization'],
+      relations: ['organization_user.organization'],
     });
 
     // console.log(members);
