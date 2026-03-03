@@ -66,7 +66,10 @@ export class Organization {
   @Column({ type: 'text', nullable: true })
   bank: string | null;
 
-  @Column({ type: 'enum', enum: OrgPlans, default: OrgPlans.BASIC })
+  @Column({ type: 'boolean', default: false })
+  is_verified: boolean;
+
+  @Column({ type: 'enum', enum: OrgPlans, default: OrgPlans.FREE })
   enterprise_plan: OrgPlans;
 
   @ApiProperty({
@@ -86,8 +89,8 @@ export class Organization {
   @OneToMany(() => OrganizationUser, (orgUser) => orgUser.organization)
   organization_users: OrganizationUser[];
 
-  @OneToOne(() => OrganizationSubscription, (sub) => sub.organization)
-  subscription: OrganizationSubscription;
+  @OneToMany(() => OrganizationSubscription, (sub) => sub.organization)
+  subscriptions: OrganizationSubscription[];
 
   @OneToMany(() => MemberPlan, (plan) => plan.organization)
   member_plans: MemberPlan[];

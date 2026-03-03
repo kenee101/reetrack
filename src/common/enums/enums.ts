@@ -43,9 +43,10 @@ export enum OrgRole {
 }
 
 export enum OrgPlans {
-  BASIC = 'BASIC',
-  PLATINUM = 'PLATINUM',
-  GOLD = 'GOLD',
+  FREE = 'Free',
+  STARTER = 'Starter',
+  GROWTH = 'Growth',
+  PRO = 'Pro',
 }
 
 export enum PlanInterval {

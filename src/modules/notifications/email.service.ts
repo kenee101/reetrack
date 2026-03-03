@@ -69,7 +69,9 @@ export class EmailService {
       register_organization_email:
         this.registerOrganizationEmailTemplate(context),
       custom_email: this.customEmailTemplate(context),
-      password_reset: this.passwordResetEmail(context),
+      password_reset: this.passwordResetEmailTemplate(context),
+      email_verification_otp: this.otpEmailTemplate(context),
+      email_verified: this.verifiedEmailTemplate(context),
       subscription_cancelled: this.subscriptionCancelledTemplate(context),
     };
 
@@ -355,7 +357,7 @@ export class EmailService {
     `;
   }
 
-  private passwordResetEmail(context: any): string {
+  private passwordResetEmailTemplate(context: any): string {
     const { resetToken, email, organization = {} } = context;
 
     const orgName = organization?.name || 'ReeTrack';
@@ -1194,6 +1196,327 @@ export class EmailService {
         <p>${context.message || 'Notification from ReeTrack'}</p>
       </body>
       </html>
+    `;
+  }
+
+  private otpEmailTemplate(context: any): string {
+    const { userName, otp, expirationMinutes = 10 } = context;
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Verify Your Email Address</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Arial, sans-serif;
+          line-height: 1.6;
+          color: #333333;
+          margin: 0;
+          padding: 0;
+          background-color: #f8fafc;
+        }
+        .container {
+          max-width: 600px;
+          margin: 40px auto;
+          background: #ffffff;
+          border-radius: 12px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          overflow: hidden;
+        }
+        .header {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 600;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .otp-container {
+          background: #f8fafc;
+          border: 2px dashed #cbd5e1;
+          border-radius: 8px;
+          padding: 30px;
+          text-align: center;
+          margin: 30px 0;
+        }
+        .otp-code {
+          font-size: 32px;
+          font-weight: bold;
+          letter-spacing: 8px;
+          color: #667eea;
+          font-family: 'Courier New', monospace;
+          margin: 0;
+        }
+        .info-box {
+          background: #eff6ff;
+          border-left: 4px solid #3b82f6;
+          padding: 20px;
+          margin: 25px 0;
+          border-radius: 0 8px 8px 0;
+        }
+        .footer {
+          background: #f8fafc;
+          padding: 30px;
+          text-align: center;
+          font-size: 14px;
+          color: #64748b;
+          border-top: 1px solid #e2e8f0;
+        }
+        .security-note {
+          background: #fef2f2;
+          border-left: 4px solid #ef4444;
+          padding: 15px;
+          margin: 20px 0;
+          border-radius: 0 8px 8px 0;
+          font-size: 13px;
+        }
+        @media only screen and (max-width: 600px) {
+          .container {
+            margin: 20px auto;
+            border-radius: 0;
+          }
+          .header, .content, .footer {
+            padding: 25px 20px;
+          }
+          .otp-code {
+            font-size: 24px;
+            letter-spacing: 6px;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Email Verification</h1>
+        </div>
+        
+        <div class="content">
+          <p>Hello <strong>${userName || 'User'}</strong>,</p>
+          
+          <p>Thank you for signing up with ReeTrack! To complete your registration and verify your email address, please use the verification code below:</p>
+          
+          <div class="otp-container">
+            <p class="otp-code">${otp}</p>
+          </div>
+          
+          <div class="info-box">
+            <p><strong>How to use this code:</strong></p>
+            <ol style="margin: 10px 0; padding-left: 20px;">
+              <li>Copy the 6-digit code above</li>
+              <li>Return to the ReeTrack application</li>
+              <li>Enter the code in the verification field</li>
+              <li>Your email will be verified instantly</li>
+            </ol>
+          </div>
+          
+          <div class="security-note">
+            <p><strong>🔒 Security Notice:</strong></p>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+              <li>This code will expire in <strong>${expirationMinutes} minutes</strong></li>
+              <li>Never share this code with anyone</li>
+              <li>ReeTrack staff will never ask for your verification code</li>
+              <li>If you didn't request this, please ignore this email</li>
+            </ul>
+          </div>
+
+          <div style="margin: 2px 0">
+            <p>Go to https://reetrack.com/auth/verify-email to get OTP link</p>
+          </div>
+          
+          <p>Having trouble? <a href="mailto:reetrack.inc@gmail.com" style="color: #667eea; text-decoration: none;">Contact our support team</a></p>
+        </div>
+        
+        <div class="footer">
+          <p>© ${new Date().getFullYear()} ReeTrack. All rights reserved.</p>
+          <p>This is an automated message. Please do not reply to this email.</p>
+          <p style="margin-top: 10px; font-size: 12px;">
+            If you believe you received this email in error, no action is required.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
+    `;
+  }
+
+  private verifiedEmailTemplate(context: any): string {
+    const { userName } = context;
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Email Verified Successfully</title>
+      <style>
+        body {
+          font-family: 'Segoe UI', Arial, sans-serif;
+          line-height: 1.6;
+          color: #333333;
+          margin: 0;
+          padding: 0;
+          background-color: #f8fafc;
+        }
+        .container {
+          max-width: 600px;
+          margin: 40px auto;
+          background: #ffffff;
+          border-radius: 12px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          overflow: hidden;
+        }
+        .header {
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white;
+          padding: 40px 30px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 600;
+        }
+        .content {
+          padding: 40px 30px;
+        }
+        .success-icon {
+          width: 80px;
+          height: 80px;
+          background: #10b981;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 30px;
+          font-size: 40px;
+        }
+        .success-box {
+          background: #ecfdf5;
+          border: 1px solid #a7f3d0;
+          border-radius: 8px;
+          padding: 25px;
+          margin: 30px 0;
+          text-align: center;
+        }
+        .button {
+          display: inline-block;
+          padding: 15px 35px;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white !important;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 16px;
+          margin: 25px 0;
+          transition: transform 0.2s ease;
+        }
+        .button:hover {
+          transform: translateY(-2px);
+        }
+        .next-steps {
+          background: #f1f5f9;
+          border-radius: 8px;
+          padding: 25px;
+          margin: 30px 0;
+        }
+        .next-steps h3 {
+          margin-top: 0;
+          color: #1e293b;
+        }
+        .next-steps ul {
+          margin: 15px 0;
+          padding-left: 20px;
+        }
+        .next-steps li {
+          margin-bottom: 10px;
+          color: #475569;
+        }
+        .footer {
+          background: #f8fafc;
+          padding: 30px;
+          text-align: center;
+          font-size: 14px;
+          color: #64748b;
+          border-top: 1px solid #e2e8f0;
+        }
+        @media only screen and (max-width: 600px) {
+          .container {
+            margin: 20px auto;
+            border-radius: 0;
+          }
+          .header, .content, .footer {
+            padding: 25px 20px;
+          }
+          .button {
+            width: 100%;
+            box-sizing: border-box;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Email Verified!</h1>
+        </div>
+        
+        <div class="content">
+          <div class="success-icon">
+            ✓
+          </div>
+          
+          <h2 style="text-align: center; color: #1e293b; margin-bottom: 20px;">
+            Welcome aboard, <strong>${userName || 'User'}</strong>!
+          </h2>
+          
+          <div class="success-box">
+            <p style="margin: 0; font-size: 18px; color: #065f46;">
+              <strong>Your email address has been successfully verified.</strong>
+            </p>
+          </div>
+          
+          <p style="text-align: center; font-size: 16px; color: #475569; margin: 20px 0;">
+            You now have full access to all ReeTrack features and can start managing your subscriptions with confidence.
+          </p>
+          
+          <div style="text-align: center;">
+            <a href="https://reetrack.com/auth/login" class="button">
+              Proceed to Dashboard
+            </a>
+          </div>
+          
+          <div class="next-steps">
+            <h3>🚀 What's Next?</h3>
+            <ul>
+              <li>Complete your profile setup</li>
+              <li>Explore our subscription management features</li>
+              <li>Create your first organization or join an existing one</li>
+              <li>Set up your billing preferences</li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="footer">
+          <p>© ${new Date().getFullYear()} ReeTrack. All rights reserved.</p>
+          <p>This is an automated message. Please do not reply to this email.</p>
+          <p style="margin-top: 10px; font-size: 12px;">
+            If you didn't verify this email, please contact our security team immediately.
+          </p>
+        </div>
+      </div>
+    </body>
+    </html>
     `;
   }
 }

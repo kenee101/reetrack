@@ -118,7 +118,7 @@ export class SubscriptionsService {
 
     if (existingSubscription) {
       throw new BadRequestException(
-        'Member already has an active subscription to this plan',
+        'Member already has an active/pending subscription to this plan',
       );
     }
 

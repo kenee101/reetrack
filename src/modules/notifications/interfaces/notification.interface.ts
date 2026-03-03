@@ -28,4 +28,6 @@ export enum NotificationType {
   REGISTER_ORGANIZATION_EMAIL = 'register_organization_email',
   CUSTOM_EMAIL = 'custom_email',
   PASSWORD_RESET = 'password_reset',
+  EMAIL_VERIFIED = 'email_verified',
+  EMAIL_VERIFICATION_OTP = 'email_verification_otp',
 }

@@ -9,8 +9,6 @@ import {
 import { Exclude } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { OrganizationUser } from './organization-user.entity';
-import { RefreshToken } from './refresh-token.entity';
-import { OrganizationInvite } from './organization-invite.entity';
 import { Member } from './member.entity';
 
 @Entity('users')
@@ -98,7 +96,4 @@ export class User {
 
   @OneToMany(() => Member, (member) => member.user)
   members: Member[];
-
-  @OneToMany(() => RefreshToken, (token) => token.user)
-  refresh_tokens: RefreshToken[];
 }

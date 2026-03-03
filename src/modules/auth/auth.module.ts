@@ -9,23 +9,23 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshJwtStrategy } from './strategies/refresh-jwt.strategy';
 import { Organization } from '../../database/entities/organization.entity';
 import { User } from '../../database/entities/user.entity';
-import { RefreshToken } from '../../database/entities/refresh-token.entity';
 import { OrganizationUser } from '../../database/entities/organization-user.entity';
 import { Member } from '../../database/entities/member.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { OrganizationInvite } from '../../database/entities/organization-invite.entity';
 import { InvitationsModule } from '../invitations/invitations.module';
 import { PlansModule } from '../plans/plans.module';
+import { EmailVerification } from '../../database/entities/email-verification.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Organization,
       User,
-      RefreshToken,
       OrganizationUser,
       Member,
       OrganizationInvite,
+      EmailVerification,
     ]),
     PassportModule,
     JwtModule.registerAsync({

@@ -165,12 +165,12 @@ export class CronService {
       // }
 
       // Update the current plan and the transaction fee
-      organization!.enterprise_plan = OrgPlans.BASIC;
+      organization!.enterprise_plan = OrgPlans.FREE;
       await this.organizationRepository.save(organization!);
 
       await this.planLimitService.updateTransactionFees(
         organization!.id,
-        OrgPlans.BASIC,
+        OrgPlans.FREE,
       );
 
       // Send notification
@@ -427,11 +427,7 @@ export class CronService {
       .andWhere('created_at < :date', { date: twoMonthsAgo })
       .execute();
 
-    // Cleanup expired refresh tokens
-    const deletedTokens = await this.authService.cleanupExpiredTokens();
-
     this.logger.log(`✅ Deleted ${deletedInvoices.affected} old invoices`);
-    this.logger.log(`✅ Deleted ${deletedTokens} expired refresh tokens`);
   }
 
   // GENERATE DAILY STATS

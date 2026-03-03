@@ -53,7 +53,7 @@ export class OrganizationSubscription {
   @UpdateDateColumn({ type: 'timestamp with time zone' })
   updated_at: Date;
 
-  @OneToOne(() => Organization, (org) => org.subscription, {
+  @ManyToOne(() => Organization, (org) => org.subscriptions, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'organization_id' })

@@ -1,15 +1,15 @@
 export const PLAN_FEATURES = {
-  BASIC: {
+  Free: {
     adminAccounts: 1,
     customEmailsPerMonth: 2,
-    transactionFeePercent: 10,
+    transactionFeePercent: 8,
     analyticsLevel: 'basic',
     memberPlanAccess: 1,
     checkIn: false,
     reportsGeneration: false,
     prioritySupport: false,
   },
-  PLATINUM: {
+  Starter: {
     adminAccounts: 3,
     customEmailsPerMonth: 50,
     transactionFeePercent: 7,
@@ -19,10 +19,20 @@ export const PLAN_FEATURES = {
     reportsGeneration: true,
     prioritySupport: true,
   },
-  GOLD: {
+  Growth: {
     adminAccounts: Infinity,
     customEmailsPerMonth: 200,
-    transactionFeePercent: 4,
+    transactionFeePercent: 6,
+    analyticsLevel: 'advanced',
+    memberPlanAccess: Infinity,
+    checkIn: true,
+    reportsGeneration: true,
+    prioritySupport: true,
+  },
+  Pro: {
+    adminAccounts: Infinity,
+    customEmailsPerMonth: 200,
+    transactionFeePercent: 5,
     analyticsLevel: 'advanced',
     memberPlanAccess: Infinity,
     checkIn: true,

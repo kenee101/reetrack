@@ -426,7 +426,7 @@ export class NotificationsService {
   }) {
     await this.emailService.sendEmail({
       to: data.email,
-      subject: `⚠️ Action Required: Subscription Renewal Failed - ${data.subscriptionName}`,
+      subject: `Action Required: Subscription Renewal Failed - ${data.subscriptionName}`,
       template: 'renewal_failed',
       context: {
         memberName: data.memberName,
@@ -511,6 +511,43 @@ export class NotificationsService {
     this.logger.log(
       `Subscription cancelled notification sent to ${data.email}`,
     );
+    this.stats.emailsSent++;
+  }
+
+  async sendEmailVerificationOTP(data: {
+    email: string;
+    userName: string;
+    otp: string;
+  }) {
+    await this.emailService.sendEmail({
+      to: data.email,
+      subject: 'Verify Your Email Address',
+      template: 'email_verification_otp',
+      context: {
+        userName: data.userName,
+        otp: data.otp,
+        expirationMinutes: 10,
+      },
+    });
+
+    this.logger.log(`Email verification OTP sent to ${data.email}`);
+    this.stats.emailsSent++;
+  }
+
+  async sendEmailVerifiedNotification(data: {
+    email: string;
+    userName: string;
+  }) {
+    await this.emailService.sendEmail({
+      to: data.email,
+      subject: 'Your Email Has Been Verified',
+      template: 'email_verified',
+      context: {
+        userName: data.userName,
+      },
+    });
+
+    this.logger.log(`Email verified notification sent to ${data.email}`);
     this.stats.emailsSent++;
   }
 }

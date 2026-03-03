@@ -29,6 +29,8 @@ import { IsEmail, IsString, IsArray, ArrayNotEmpty } from 'class-validator';
 import { StaffRegisterDto } from 'src/common/dto/staff-register.dto';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { OrgRole } from 'src/common/enums/enums';
+import { SendVerificationDto } from './dto/send-verification.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 type RequestUser = {
   id: string;
@@ -403,9 +405,6 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const refreshToken = request.cookies.refreshToken;
-    await this.authService.logout(user.id, refreshToken);
-
     // Clear refresh token cookie
     response.clearCookie('refreshToken');
 
@@ -425,8 +424,6 @@ export class AuthController {
     @CurrentUser() user: any,
     @Res({ passthrough: true }) response: Response,
   ) {
-    await this.authService.logoutAllDevices(user.id);
-
     // Clear refresh token cookie
     response.clearCookie('refreshToken');
 
@@ -495,5 +492,38 @@ export class AuthController {
       body.token,
       body.password,
     );
+  }
+
+  @Post('send-verification')
+  @Throttle({ short: { limit: 5, ttl: 60000 } }) // 5 requests per minute
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Send email verification code' })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification code sent successfully',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 400, description: 'Email already verified' })
+  async sendEmailVerification(
+    @Body() sendVerificationDto: SendVerificationDto,
+  ) {
+    return this.authService.sendEmailVerification(sendVerificationDto);
+  }
+
+  @Post('verify-email')
+  @Throttle({ short: { limit: 10, ttl: 60000 } }) // 10 requests per minute
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify email with OTP' })
+  @ApiResponse({
+    status: 200,
+    description: 'Email verified successfully',
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid or expired verification code',
+  })
+  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
+    return this.authService.verifyEmail(verifyEmailDto);
   }
 }

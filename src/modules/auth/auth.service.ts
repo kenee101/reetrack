@@ -9,12 +9,11 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan, In } from 'typeorm';
+import { Repository, LessThan, In, MoreThan } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { Organization } from '../../database/entities/organization.entity';
 import { User } from '../../database/entities/user.entity';
-import { RefreshToken } from '../../database/entities/refresh-token.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RegisterDto } from '../../common/dto/register.dto';
 import { LoginDto } from '../../common/dto/login.dto';
@@ -29,6 +28,9 @@ import { UserRegisterDto } from 'src/common/dto/user-register.dto';
 import { CustomRegisterDto } from './auth.controller';
 import { InvitationsService } from '../invitations/invitations.service';
 import { PlanLimitService } from '../plans/plans-limit.service';
+import { EmailVerification } from '../../database/entities/email-verification.entity';
+import { SendVerificationDto } from './dto/send-verification.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 interface RegisterOrgResponse {
   message: string;
@@ -59,8 +61,8 @@ export class AuthService {
     @InjectRepository(Member)
     private memberRepository: Repository<Member>,
 
-    @InjectRepository(RefreshToken)
-    private refreshTokenRepository: Repository<RefreshToken>,
+    @InjectRepository(EmailVerification)
+    private emailVerificationRepository: Repository<EmailVerification>,
 
     private jwtService: JwtService,
     private configService: ConfigService,
@@ -80,6 +82,12 @@ export class AuthService {
     if (!existingUser) {
       throw new NotFoundException(
         'User email not found. Please register an account with us.',
+      );
+    }
+
+    if (!existingUser.email_verified) {
+      throw new BadRequestException(
+        'Please verify your email before creating an organization',
       );
     }
 
@@ -370,7 +378,8 @@ export class AuthService {
         first_name: registerDto.firstName,
         last_name: registerDto.lastName,
         phone: registerDto.phone,
-        status: 'active',
+        status: 'inactive',
+        email_verified: false,
       });
 
       user = await this.userRepository.save(user);
@@ -411,6 +420,13 @@ export class AuthService {
 
     if (user.status !== 'active') {
       throw new UnauthorizedException('Account is inactive');
+    }
+
+    // Check if email is verified
+    if (!user.email_verified) {
+      throw new UnauthorizedException(
+        'Please verify your email before logging in. Check your email for the verification link.',
+      );
     }
 
     // Verify password
@@ -485,14 +501,6 @@ export class AuthService {
     role: string | null,
     currentOrganizationId: string | null,
   ) {
-    // const storedToken = await this.refreshTokenRepository.findOne({
-    //   where: { token: oldRefreshToken, is_revoked: false },
-    // });
-
-    // if (!storedToken) {
-    //   throw new UnauthorizedException('Invalid refresh token');
-    // }
-
     // Get user
     const user = await this.userRepository.findOne({
       where: { id: userId },
@@ -501,19 +509,6 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-
-    // const orgUser = await this.organizationUserRepository.findOne({
-    //   where: { user_id: userId },
-    //   relations: ['organization'],
-    // });
-
-    // if (!orgUser) {
-    //   throw new UnauthorizedException('No organization access');
-    // }
-
-    // Revoke old token
-    // storedToken.is_revoked = true;
-    // await this.refreshTokenRepository.save(storedToken);
 
     // Generate new tokens
     const { accessToken, refreshToken } = await this.generateTokens(
@@ -530,30 +525,6 @@ export class AuthService {
         access_token: accessToken,
         refresh_token: refreshToken,
       },
-    };
-  }
-
-  async logout(userId: string, refreshToken: string) {
-    // Revoke refresh token
-    await this.refreshTokenRepository.update(
-      { token: refreshToken, user_id: userId },
-      { is_revoked: true },
-    );
-
-    return {
-      message: 'Logged out successfully',
-    };
-  }
-
-  async logoutAllDevices(userId: string) {
-    // Revoke all refresh tokens for user
-    await this.refreshTokenRepository.update(
-      { user_id: userId, is_revoked: false },
-      { is_revoked: true },
-    );
-
-    return {
-      message: 'Logged out from all devices',
     };
   }
 
@@ -598,39 +569,29 @@ export class AuthService {
     };
   }
 
-  // Clean up expired tokens (run by cron job)
-  async cleanupExpiredTokens() {
-    const now = new Date();
-    const deleted = await this.refreshTokenRepository.delete({
-      expires_at: LessThan(now),
-    });
+  // async checkSuspiciousActivity(userId: string) {
+  //   // Check for multiple IPs
+  //   const tokens = await this.refreshTokenRepository.find({
+  //     where: { user_id: userId, is_revoked: false },
+  //     take: 100,
+  //   });
 
-    return deleted.affected || 0;
-  }
+  //   const uniqueIPs = new Set(tokens.map((t) => t.ip_address).filter(Boolean));
 
-  async checkSuspiciousActivity(userId: string) {
-    // Check for multiple IPs
-    const tokens = await this.refreshTokenRepository.find({
-      where: { user_id: userId, is_revoked: false },
-      take: 100,
-    });
+  //   if (uniqueIPs.size > 5) {
+  //     // Potential account compromise - send alert
+  //     const user = await this.userRepository.findOne({ where: { id: userId } });
+  //     if (user) {
+  //       // TODO: Send security alert email
+  //       console.warn(
+  //         `Suspicious activity detected for user ${user.email}: ${uniqueIPs.size} unique IPs`,
+  //       );
+  //     }
 
-    const uniqueIPs = new Set(tokens.map((t) => t.ip_address).filter(Boolean));
-
-    if (uniqueIPs.size > 5) {
-      // Potential account compromise - send alert
-      const user = await this.userRepository.findOne({ where: { id: userId } });
-      if (user) {
-        // TODO: Send security alert email
-        console.warn(
-          `Suspicious activity detected for user ${user.email}: ${uniqueIPs.size} unique IPs`,
-        );
-      }
-
-      // Optional auto logout all devices
-      // await this.logoutAllDevices(userId);
-    }
-  }
+  //     // Optional auto logout all devices
+  //     // await this.logoutAllDevices(userId);
+  //   }
+  // }
 
   private async generateUniqueSlug(name: string): Promise<string> {
     let slug = name
@@ -684,27 +645,6 @@ export class AuthService {
       },
     );
 
-    // Store refresh token
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 1); // 1 day
-
-    // type TokenData = Pick<
-    //   RefreshToken,
-    //   'user_id' | 'token' | 'expires_at' | 'ip_address' | 'user_agent'
-    // >;
-
-    // const tokenInstance: TokenData = {
-    //   user_id: user.id,
-    //   token: refreshToken,
-    //   expires_at: expiresAt,
-    //   ip_address: ipAddress || null,
-    //   user_agent: userAgent || null,
-    // };
-
-    // const tokenEntity = this.refreshTokenRepository.create(tokenInstance);
-
-    // await this.refreshTokenRepository.save(tokenEntity);
-
     return { accessToken, refreshToken };
   }
 
@@ -747,6 +687,131 @@ export class AuthService {
 
     return {
       message: 'Password reset successfully',
+    };
+  }
+
+  // Email Verification Methods
+  async sendEmailVerification(sendVerificationDto: SendVerificationDto) {
+    const user = await this.userRepository.findOne({
+      where: { email: sendVerificationDto.email },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.email_verified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Invalidate any existing OTPs for this email
+    await this.emailVerificationRepository.update(
+      { email: sendVerificationDto.email, is_used: false },
+      { is_used: true },
+    );
+
+    // Create new email verification record
+    const emailVerification = this.emailVerificationRepository.create({
+      email: sendVerificationDto.email,
+      otp,
+      expires_at: expiresAt,
+      user,
+    });
+
+    await this.emailVerificationRepository.save(emailVerification);
+
+    // Send verification email
+    await this.notificationsService.sendEmailVerificationOTP({
+      email: sendVerificationDto.email,
+      userName: `${user.first_name} ${user.last_name}`,
+      otp,
+    });
+
+    return {
+      message: 'Verification code sent to your email',
+      data: {
+        email: sendVerificationDto.email,
+        expires_at: expiresAt,
+      },
+    };
+  }
+
+  async verifyEmail(verifyEmailDto: VerifyEmailDto) {
+    const user = await this.userRepository.findOne({
+      where: { email: verifyEmailDto.email },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.email_verified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    // Find valid OTP
+    const emailVerification = await this.emailVerificationRepository.findOne({
+      where: {
+        email: verifyEmailDto.email,
+        otp: verifyEmailDto.otp,
+        is_used: false,
+        expires_at: MoreThan(new Date()),
+      },
+    });
+
+    if (!emailVerification) {
+      // Check if there's an unused OTP that expired or has too many attempts
+      const existingAttempt = await this.emailVerificationRepository.findOne({
+        where: {
+          email: verifyEmailDto.email,
+          is_used: false,
+        },
+        order: { created_at: 'DESC' },
+      });
+
+      if (existingAttempt) {
+        existingAttempt.attempts += 1;
+        if (
+          existingAttempt.attempts >= 3 ||
+          existingAttempt.expires_at < new Date()
+        ) {
+          existingAttempt.is_used = true;
+          await this.emailVerificationRepository.save(existingAttempt);
+          throw new BadRequestException(
+            'Invalid or expired verification code. Please request a new one.',
+          );
+        }
+        await this.emailVerificationRepository.save(existingAttempt);
+      }
+
+      throw new BadRequestException('Invalid verification code');
+    }
+
+    // Mark OTP as used
+    emailVerification.is_used = true;
+    await this.emailVerificationRepository.save(emailVerification);
+
+    // Update user email verification status
+    user.email_verified = true;
+    user.status = 'active';
+    await this.userRepository.save(user);
+
+    // Send confirmation email
+    await this.notificationsService.sendEmailVerifiedNotification({
+      email: user.email,
+      userName: `${user.first_name} ${user.last_name}`,
+    });
+
+    return {
+      message: 'Email verified successfully',
+      data: {
+        email: user.email,
+        email_verified: true,
+      },
     };
   }
 }
