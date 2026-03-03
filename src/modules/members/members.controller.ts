@@ -164,9 +164,9 @@ export class MembersController {
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Member not found' })
-  @Get('/:memberId')
+  @Get('/:memberId/:organizationId')
   findOneMemberDetails(
-    @CurrentOrganization() organizationId: string,
+    @Param('organizationId') organizationId: string,
     @Param('memberId') memberId: string,
   ) {
     return this.membersService.findOneMemberDetails(organizationId, memberId);

@@ -82,6 +82,8 @@ export class MembersService {
     const member = await this.memberRepository
       .createQueryBuilder('member')
       .leftJoinAndSelect('member.user', 'user')
+      .leftJoinAndSelect('member.organization_user', 'orgUser')
+      .leftJoinAndSelect('orgUser.organization', 'organization')
       .leftJoinAndSelect(
         'member.subscriptions',
         'subscription',
@@ -89,7 +91,6 @@ export class MembersService {
         { organizationId },
       )
       .leftJoinAndSelect('subscription.plan', 'plan')
-      .leftJoin('member.organization_user', 'orgUser')
       .where('member.id = :memberId', { memberId })
       .andWhere('orgUser.organization_id = :organizationId', { organizationId })
       .getOne();
