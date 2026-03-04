@@ -20,7 +20,37 @@ export class EmailService {
       tls: {
         rejectUnauthorized: false, // Allow self-signed certificates
       },
+      connectionTimeout: 60000, // 60 seconds
+      greetingTimeout: 30000, // 30 seconds
+      socketTimeout: 60000, // 60 seconds
     });
+
+    // Verify SMTP connection asynchronously
+    this.verifySmtpConnection();
+  }
+
+  private async verifySmtpConnection(): Promise<void> {
+    try {
+      await this.transporter.verify();
+      this.logger.log('✅ SMTP connection verified successfully');
+    } catch (error) {
+      this.logger.error('❌ SMTP connection failed:', error.message);
+
+      // Provide specific error guidance
+      if (error.message.includes('ETIMEDOUT')) {
+        this.logger.error(
+          '🔧 Possible causes: Port blocked, firewall issues, or incorrect SMTP port',
+        );
+      } else if (error.message.includes('auth')) {
+        this.logger.error(
+          '🔧 Possible causes: Incorrect SMTP credentials or authentication method',
+        );
+      } else if (error.message.includes('ENOTFOUND')) {
+        this.logger.error(
+          '🔧 Possible causes: Incorrect SMTP host or DNS resolution issues',
+        );
+      }
+    }
   }
 
   async sendEmail(options: EmailOptions): Promise<boolean> {
