@@ -433,7 +433,7 @@ export class AuthController {
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get user profile' })
+  @ApiOperation({ summary: 'Get user profile for admins and staff only' })
   @ApiResponse({
     status: 200,
     description: 'User profile retrieved successfully',
@@ -449,7 +449,6 @@ export class AuthController {
             id: '123e4567-e89b-12d3-a456-426614174001',
             name: 'Example Corp',
             email: 'john@test.com',
-            subscription_plan: 'free',
           },
         },
       },
