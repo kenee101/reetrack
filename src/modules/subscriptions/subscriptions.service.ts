@@ -835,7 +835,7 @@ export class SubscriptionsService {
         const newSubscription = this.organizationSubscriptionRepository.create({
           organization_id: organizationId,
           plan_id: newPlan.id,
-          status: SubscriptionStatus.ACTIVE,
+          status: SubscriptionStatus.PENDING,
           started_at: new Date(),
           expires_at: this.calculatePeriodEnd(
             new Date(),

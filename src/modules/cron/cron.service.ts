@@ -314,7 +314,9 @@ export class CronService {
           email: user.email,
           phone: user.phone,
           memberName: `${user.first_name} ${user.last_name}`,
-          invoiceNumber: invoices.map((invoice) => invoice.id).join(', '),
+          invoiceNumber: invoices
+            .map((invoice) => invoice.invoice_number)
+            .join(', '),
           amount: totalAmount,
           currency: invoices[0].currency,
           dueDate: oldestInvoice.due_date,

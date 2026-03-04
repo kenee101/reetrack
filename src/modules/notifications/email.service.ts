@@ -754,7 +754,7 @@ export class EmailService {
             <p>Hi ${context.memberName},</p>
             <p>A new invoice has been created for your account.</p>
             <div class="details">
-              <p><strong>Invoice #:</strong> ${context.invoiceNumber}</p>
+              <p><strong>Invoice No.:</strong> ${context.invoiceNumber}</p>
               <p><strong>Amount:</strong> ${context.currency} ${context.amount}</p>
               <p><strong>Due Date:</strong> ${context.dueDate}</p>
             </div>
@@ -787,7 +787,7 @@ export class EmailService {
             <p>Hi ${context.memberName},</p>
             <p>Your invoice is overdue. Please make payment as soon as possible.</p>
             <div class="details">
-              <p><strong>Invoice #:</strong> ${context.invoiceNumber}</p>
+              <p><strong>Invoice No.:</strong> ${context.invoiceNumber}</p>
               <p><strong>Amount Due:</strong> ${context.currency} ${context.amount}</p>
               <p><strong>Due Date:</strong> ${context.dueDate}</p>
               <p><strong>Days Overdue:</strong> ${context.daysOverdue}</p>
