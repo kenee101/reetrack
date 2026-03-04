@@ -56,6 +56,7 @@ export default () => ({
     fromName: process.env.SMTP_FROM_NAME,
     fromEmail: process.env.SMTP_FROM_EMAIL,
     replyToEmail: process.env.SMTP_REPLY_TO_EMAIL,
+    apiKey: process.env.SMTP_API_KEY,
   },
 
   termii: {

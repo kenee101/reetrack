@@ -1,71 +1,79 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
 import { EmailOptions } from './interfaces/notification.interface';
+
+interface BrevoEmailPayload {
+  sender: { name: string; email: string };
+  to: { email: string }[];
+  replyTo?: { email: string };
+  subject: string;
+  htmlContent: string;
+}
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private transporter: nodemailer.Transporter;
+  private readonly brevoApiUrl = 'https://api.brevo.com/v3/smtp/email';
+  private readonly apiKey: string;
+  private readonly fromName: string;
+  private readonly fromEmail: string;
+  private readonly replyToEmail: string;
 
   constructor(private configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get('smtp.host'),
-      port: this.configService.get('smtp.port'),
-      secure: this.configService.get('smtp.port') === 465, // true for port 465, false for others
-      auth: {
-        user: this.configService.get('smtp.user'),
-        pass: this.configService.get('smtp.password'),
-      },
-      tls: {
-        rejectUnauthorized: false, // Allow self-signed certificates
-      },
-      connectionTimeout: 60000, // 60 seconds
-      greetingTimeout: 30000, // 30 seconds
-      socketTimeout: 60000, // 60 seconds
-    });
+    this.apiKey = this.configService.get<string>('smtp.apiKey') || '';
+    this.fromName =
+      this.configService.get<string>('smtp.fromName') || 'ReeTrack';
+    this.fromEmail = this.configService.get<string>('smtp.fromEmail') || '';
+    this.replyToEmail =
+      this.configService.get<string>('smtp.replyToEmail') || '';
 
-    // Verify SMTP connection asynchronously
-    this.verifySmtpConnection();
-  }
-
-  private async verifySmtpConnection(): Promise<void> {
-    try {
-      await this.transporter.verify();
-      this.logger.log('✅ SMTP connection verified successfully');
-    } catch (error) {
-      this.logger.error('❌ SMTP connection failed:', error.message);
-
-      // Provide specific error guidance
-      if (error.message.includes('ETIMEDOUT')) {
-        this.logger.error(
-          '🔧 Possible causes: Port blocked, firewall issues, or incorrect SMTP port',
-        );
-      } else if (error.message.includes('auth')) {
-        this.logger.error(
-          '🔧 Possible causes: Incorrect SMTP credentials or authentication method',
-        );
-      } else if (error.message.includes('ENOTFOUND')) {
-        this.logger.error(
-          '🔧 Possible causes: Incorrect SMTP host or DNS resolution issues',
-        );
-      }
-    }
+    // Verify config on startup
+    // if (!this.apiKey) {
+    //   this.logger.error(
+    //     '❌ BREVO_API_KEY is not set. Emails will not be sent.',
+    //   );
+    // } else {
+    //   this.logger.log('✅ Brevo email service initialized');
+    // }
   }
 
   async sendEmail(options: EmailOptions): Promise<boolean> {
     try {
       const html = this.getEmailTemplate(options.template, options.context);
 
-      await this.transporter.sendMail({
-        from: `"${this.configService.get('smtp.fromName')}" <${this.configService.get('smtp.fromEmail')}>`,
-        to: options.to,
-        replyTo: this.configService.get('smtp.replyToEmail'),
+      const payload: BrevoEmailPayload = {
+        sender: {
+          name: this.fromName,
+          email: this.fromEmail,
+        },
+        to: [{ email: options.to }],
         subject: options.subject,
-        html,
+        htmlContent: html,
+      };
+
+      if (this.replyToEmail) {
+        payload.replyTo = { email: this.replyToEmail };
+      }
+
+      const response = await fetch(this.brevoApiUrl, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'api-key': this.apiKey,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       });
 
-      this.logger.log(`Email sent to ${options.to}: ${options.subject}`);
+      if (!response.ok) {
+        const errorBody = await response.json();
+        this.logger.error(
+          `Failed to send email to ${options.to}: [${response.status}] ${JSON.stringify(errorBody)}`,
+        );
+        return false;
+      }
+
+      this.logger.log(`✅ Email sent to ${options.to}: ${options.subject}`);
       return true;
     } catch (error) {
       this.logger.error(
@@ -326,7 +334,6 @@ export class EmailService {
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
         .header { text-align: center; padding: 20px 0; border-bottom: 1px solid #eee; }
-        .logo { max-width: 150px; height: auto; margin-bottom: 15px; }
         .content { padding: 20px 0; }
         .footer { 
           margin-top: 30px; 
@@ -351,7 +358,6 @@ export class EmailService {
           text-decoration: none;
           margin: 0 10px;
         }
-        .footer-links a:hover { text-decoration: underline; }
         @media only screen and (max-width: 600px) {
           .container { width: 100% !important; }
         }
@@ -376,7 +382,6 @@ export class EmailService {
             ${email ? `<a href="mailto:${email}">Contact Us</a> | ` : ''}
             ${phone ? `<a href="tel:${phone.replace(/[^0-9+]/g, '')}">${phone}</a>` : ''}
           </div>
-        
         </div>
       </div>
     </body>
@@ -389,7 +394,6 @@ export class EmailService {
 
     const orgName = organization?.name || 'ReeTrack';
     const supportEmail = organization?.email || 'hello@reetrack.com';
-    const website = organization?.website || 'https://www.reetrack.com';
     const logoUrl =
       organization?.logoUrl || 'https://www.reetrack.com/logo.png';
 
@@ -401,67 +405,21 @@ export class EmailService {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Reset Your Password</title>
       <style>
-        body {
-          font-family: Arial, sans-serif;
-          line-height: 1.6;
-          color: #333333;
-          margin: 0;
-          padding: 0;
-        }
-        .container {
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-          background-color: #ffffff;
-        }
-        .header {
-          text-align: center;
-          padding: 20px 0;
-          border-bottom: 1px solid #eeeeee;
-        }
-        .logo {
-          max-width: 180px;
-          height: auto;
-          margin-bottom: 20px;
-        }
-        .content {
-          padding: 30px 20px;
-        }
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; }
+        .header { text-align: center; padding: 20px 0; border-bottom: 1px solid #eeeeee; }
+        .logo { max-width: 180px; height: auto; margin-bottom: 20px; }
+        .content { padding: 30px 20px; }
         .button {
-          display: inline-block;
-          padding: 12px 30px;
-          margin: 25px 0;
-          background-color: #4F46E5;
-          color: #ffffff !important;
-          text-decoration: none;
-          border-radius: 6px;
-          font-weight: 600;
-          text-align: center;
+          display: inline-block; padding: 12px 30px; margin: 25px 0;
+          background-color: #4F46E5; color: #ffffff !important;
+          text-decoration: none; border-radius: 6px; font-weight: 600;
         }
-        .footer {
-          margin-top: 30px;
-          padding: 20px;
-          text-align: center;
-          font-size: 12px;
-          color: #666666;
-          border-top: 1px solid #eeeeee;
-        }
-        .note {
-          background-color: #f8f9fa;
-          padding: 15px;
-          border-left: 4px solid #4F46E5;
-          margin: 20px 0;
-          font-size: 14px;
-          color: #495057;
-        }
+        .footer { margin-top: 30px; padding: 20px; text-align: center; font-size: 12px; color: #666666; border-top: 1px solid #eeeeee; }
+        .note { background-color: #f8f9fa; padding: 15px; border-left: 4px solid #4F46E5; margin: 20px 0; font-size: 14px; color: #495057; }
         @media only screen and (max-width: 600px) {
-          .container {
-            width: 100% !important;
-          }
-          .button {
-            width: 100% !important;
-            box-sizing: border-box;
-          }
+          .container { width: 100% !important; }
+          .button { width: 100% !important; box-sizing: border-box; }
         }
       </style>
     </head>
@@ -474,9 +432,7 @@ export class EmailService {
         
         <div class="content">
           <p>Hello,</p>
-          
           <p>We received a request to reset the password for your ${orgName} account.</p>
-          
           <p>Copy and paste this code into the password reset field:</p>
           <div style="word-break: break-all; color: #3b82f6; margin: 15px 0;">${resetToken}</div>
           
@@ -489,9 +445,9 @@ export class EmailService {
         
         <div class="footer">
           <p>© ${new Date().getFullYear()} ${orgName}. All rights reserved.</p>
-          <p>If you have any questions, please contact our support team at <a href="mailto:${supportEmail}" style="color: #4F46E5; text-decoration: none;">${supportEmail}</a></p>
+          <p>Contact support: <a href="mailto:${supportEmail}" style="color: #4F46E5; text-decoration: none;">${supportEmail}</a></p>
           <p style="margin-top: 10px; font-size: 11px; color: #9ca3af;">
-            This email was sent to ${email}. If you believe you received this email in error, please ignore it.
+            This email was sent to ${email}. If you believe you received this in error, please ignore it.
           </p>
         </div>
       </div>
@@ -542,6 +498,39 @@ export class EmailService {
     `;
   }
 
+  private paymentFailedTemplate(context: any): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #f44336; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background: #f9f9f9; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Payment Failed</h1>
+          </div>
+          <div class="content">
+            <p>Hi ${context.memberName},</p>
+            <p>Unfortunately, your payment could not be processed.</p>
+            <p><strong>Reason:</strong> ${context.reason || 'Unknown error'}</p>
+            <p>Please try again or contact support if the issue persists.</p>
+          </div>
+          <div class="footer">
+            <p>This is an automated email from ReeTrack</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
   private paymentReminderTemplate(context: any): string {
     const {
       memberName,
@@ -564,36 +553,12 @@ export class EmailService {
           .header { text-align: center; padding: 20px 0; border-bottom: 1px solid #eee; }
           .content { padding: 20px 0; }
           .button {
-            display: inline-block;
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white !important;
-            text-decoration: none;
-            border-radius: 4px;
-            margin: 15px 0;
+            display: inline-block; padding: 10px 20px;
+            background-color: #4CAF50; color: white !important;
+            text-decoration: none; border-radius: 4px; margin: 15px 0;
           }
-          .footer { 
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            font-size: 12px;
-            color: #777;
-            text-align: center;
-          }
-          .details {
-            background: #f9f9f9;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 15px 0;
-          }
-          .detail-row {
-            display: flex;
-            margin-bottom: 8px;
-          }
-          .detail-label {
-            font-weight: bold;
-            width: 150px;
-          }
+          .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #777; text-align: center; }
+          .details { background: #f9f9f9; padding: 15px; border-radius: 4px; margin: 15px 0; }
         </style>
       </head>
       <body>
@@ -601,84 +566,15 @@ export class EmailService {
           <div class="header">
             <h2>Payment Reminder</h2>
           </div>
-          
           <div class="content">
-            <p>Dear ${memberName},</p>
-            
-            <p>This is a friendly reminder that your payment for <strong>${subscriptionName}</strong> is due on <strong>${dueDate}</strong>.</p>
-            
+            <p>Hi ${memberName},</p>
+            <p>This is a reminder that your payment for <strong>${subscriptionName}</strong> is due.</p>
             <div class="details">
-              <div class="detail-row">
-                <div class="detail-label">Invoice Number:</div>
-                <div>${invoiceNumber}</div>
-              </div>
-              <div class="detail-row">
-                <div class="detail-label">Amount Due:</div>
-                <div><strong>${amount}</strong></div>
-              </div>
-              <div class="detail-row">
-                <div class="detail-label">Due Date:</div>
-                <div>${dueDate}</div>
-              </div>
+              <p><strong>Invoice:</strong> ${invoiceNumber}</p>
+              <p><strong>Amount:</strong> ${amount}</p>
+              <p><strong>Due Date:</strong> ${dueDate}</p>
             </div>
-            
-            <p>To avoid any interruption to your service, please make the payment at your earliest convenience.</p>
-            
-            <div style="text-align: center; margin: 25px 0;">
-              <a href="${paymentUrl}" class="button">Pay Now</a>
-            </div>
-            
-            <p>If you've already made this payment, please disregard this reminder. It may take some time for our system to update.</p>
-            
-            <p>Thank you for your prompt attention to this matter.</p>
-            
-            <p>Best regards,<br>ReeTrack Team</p>
-          </div>
-          
-          <div class="footer">
-            <p>This is an automated message. Please do not reply to this email.</p>
-            <p>If you have any questions, please contact our support team.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-  }
-
-  private paymentFailedTemplate(context: any): string {
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #f44336; color: white; padding: 20px; text-align: center; }
-          .content { padding: 20px; background: #f9f9f9; }
-          .details { background: white; padding: 15px; margin: 20px 0; border-radius: 5px; }
-          .button { display: inline-block; padding: 12px 24px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px; }
-          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Payment Failed</h1>
-          </div>
-          <div class="content">
-            <p>Hi ${context.memberName},</p>
-            <p>We were unable to process your payment.</p>
-            
-            <div class="details">
-              <p><strong>Amount:</strong> ${context.currency} ${context.amount}</p>
-              <p><strong>Reason:</strong> ${context.failureReason}</p>
-              <p><strong>Invoice Number:</strong> ${context.invoiceNumber}</p>
-            </div>
-
-            <p>Please update your payment method and try again.</p>
-            <p style="text-align: center; margin: 30px 0;">
-              <a href="${context.paymentUrl}" class="button">Retry Payment</a>
-            </p>
+            ${paymentUrl ? `<a href="${paymentUrl}" class="button">Pay Now</a>` : ''}
           </div>
           <div class="footer">
             <p>This is an automated email from ReeTrack</p>
@@ -705,25 +601,18 @@ export class EmailService {
       </head>
       <body>
         <div class="container">
-          <div class="header">
-            <h1>🎉 Welcome to ${context.planName}!</h1>
-          </div>
+          <div class="header"><h1>Subscription Created</h1></div>
           <div class="content">
             <p>Hi ${context.memberName},</p>
-            <p>Your subscription has been activated successfully!</p>
-            
+            <p>Your subscription has been created successfully.</p>
             <div class="details">
               <p><strong>Plan:</strong> ${context.planName}</p>
-              <p><strong>Amount:</strong> ${context.currency} ${context.amount} / ${context.interval}</p>
-              <p><strong>Start Date:</strong> ${new Date(context.startDate).toLocaleDateString()}</p>
-              <p><strong>Next Billing:</strong> ${new Date(context.nextBilling).toLocaleDateString()}</p>
+              <p><strong>Amount:</strong> ${context.currency} ${context.amount}</p>
+              <p><strong>Start Date:</strong> ${context.startDate}</p>
+              <p><strong>Next Billing:</strong> ${context.nextBillingDate}</p>
             </div>
-
-            <p>Thank you for subscribing!</p>
           </div>
-          <div class="footer">
-            <p>This is an automated email from ReeTrack</p>
-          </div>
+          <div class="footer"><p>This is an automated email from ReeTrack</p></div>
         </div>
       </body>
       </html>
@@ -740,27 +629,18 @@ export class EmailService {
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { background: #FF9800; color: white; padding: 20px; text-align: center; }
           .content { padding: 20px; background: #f9f9f9; }
-          .button { display: inline-block; padding: 12px 24px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px; }
           .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
         </style>
       </head>
       <body>
         <div class="container">
-          <div class="header">
-            <h1>Subscription Expiring Soon</h1>
-          </div>
+          <div class="header"><h1>Subscription Expiring Soon</h1></div>
           <div class="content">
             <p>Hi ${context.memberName},</p>
-            <p>Your subscription to <strong>${context.planName}</strong> will expire in ${context.daysLeft} days.</p>
-            <p><strong>Expiry Date:</strong> ${new Date(context.expiryDate).toLocaleDateString()}</p>
-            <p>Renew now to continue enjoying uninterrupted service.</p>
-            <p style="text-align: center; margin: 30px 0;">
-              <a href="${context.renewUrl}" class="button">Renew Subscription</a>
-            </p>
+            <p>Your subscription <strong>${context.planName}</strong> will expire on <strong>${context.expiryDate}</strong>.</p>
+            <p>Please renew to avoid interruption of service.</p>
           </div>
-          <div class="footer">
-            <p>This is an automated email from ReeTrack</p>
-          </div>
+          <div class="footer"><p>This is an automated email from ReeTrack</p></div>
         </div>
       </body>
       </html>
@@ -775,28 +655,49 @@ export class EmailService {
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #9E9E9E; color: white; padding: 20px; text-align: center; }
+          .header { background: #f44336; color: white; padding: 20px; text-align: center; }
           .content { padding: 20px; background: #f9f9f9; }
-          .button { display: inline-block; padding: 12px 24px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px; }
           .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
         </style>
       </head>
       <body>
         <div class="container">
-          <div class="header">
-            <h1>Subscription Expired</h1>
-          </div>
+          <div class="header"><h1>Subscription Expired</h1></div>
           <div class="content">
             <p>Hi ${context.memberName},</p>
-            <p>Your subscription to <strong>${context.planName}</strong> has expired.</p>
-            <p>Reactivate your subscription to regain access.</p>
-            <p style="text-align: center; margin: 30px 0;">
-              <a href="${context.reactivateUrl}" class="button">Reactivate Now</a>
-            </p>
+            <p>Your subscription <strong>${context.planName}</strong> has expired.</p>
+            <p>Please renew your subscription to continue using our services.</p>
           </div>
-          <div class="footer">
-            <p>This is an automated email from ReeTrack</p>
+          <div class="footer"><p>This is an automated email from ReeTrack</p></div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  private subscriptionCancelledTemplate(context: any): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #9E9E9E; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background: #f9f9f9; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header"><h1>Subscription Cancelled</h1></div>
+          <div class="content">
+            <p>Hi ${context.memberName},</p>
+            <p>Your subscription <strong>${context.planName}</strong> has been cancelled.</p>
+            <p>You will continue to have access until <strong>${context.accessUntil}</strong>.</p>
+            <p>We're sorry to see you go. If you change your mind, you can resubscribe at any time.</p>
           </div>
+          <div class="footer"><p>This is an automated email from ReeTrack</p></div>
         </div>
       </body>
       </html>
@@ -804,328 +705,32 @@ export class EmailService {
   }
 
   private renewalFailedTemplate(context: any): string {
-    const { memberName, subscriptionName, amount, paymentUrl, expiresAt } =
-      context;
-
     return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Subscription Renewal Failed - ${subscriptionName}</title>
-      <style>
-        body { 
-          font-family: 'Segoe UI', Arial, sans-serif; 
-          line-height: 1.6; 
-          color: #333; 
-          margin: 0;
-          padding: 0;
-          background-color: #f5f5f5;
-        }
-        .container { 
-          max-width: 600px; 
-          margin: 0 auto; 
-          background: #ffffff;
-          border-radius: 8px;
-          overflow: hidden;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        .header { 
-          background: #ff4444;
-          color: white; 
-          padding: 25px 20px;
-          text-align: center;
-        }
-        .header h1 {
-          margin: 0;
-          font-size: 24px;
-        }
-        .content { 
-          padding: 30px;
-          color: #444;
-        }
-        .button {
-          display: inline-block;
-          padding: 12px 30px;
-          background-color: #ff4444;
-          color: white !important;
-          text-decoration: none;
-          border-radius: 4px;
-          font-weight: bold;
-          margin: 20px 0;
-          text-align: center;
-        }
-        .alert-box {
-          background-color: #fff8f8;
-          border-left: 4px solid #ff4444;
-          padding: 15px;
-          margin: 20px 0;
-          border-radius: 0 4px 4px 0;
-        }
-        .details {
-          background: #f9f9f9;
-          padding: 15px;
-          border-radius: 4px;
-          margin: 20px 0;
-        }
-        .detail-row {
-          display: flex;
-          margin-bottom: 10px;
-          padding-bottom: 10px;
-          border-bottom: 1px solid #eee;
-        }
-        .detail-row:last-child {
-          border-bottom: none;
-          margin-bottom: 0;
-          padding-bottom: 0;
-        }
-        .detail-label {
-          font-weight: 600;
-          width: 40%;
-          color: #666;
-        }
-        .detail-value {
-          width: 60%;
-          font-weight: 500;
-        }
-        .footer {
-          background: #f5f5f5;
-          padding: 20px;
-          text-align: center;
-          font-size: 12px;
-          color: #777;
-          border-top: 1px solid #eee;
-        }
-        .action-box {
-          text-align: center;
-          margin: 25px 0;
-        }
-        @media only screen and (max-width: 600px) {
-          .container {
-            width: 100% !important;
-            border-radius: 0;
-          }
-          .detail-row {
-            flex-direction: column;
-          }
-          .detail-label, .detail-value {
-            width: 100%;
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>Subscription Renewal Failed</h1>
-        </div>
-        
-        <div class="content">
-          <p>Hi ${memberName},</p>
-          
-          <div class="alert-box">
-            <p>We couldn't process the renewal payment for your <strong>${subscriptionName}</strong> subscription.</p>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #f44336; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background: #f9f9f9; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header"><h1>Subscription Renewal Failed</h1></div>
+          <div class="content">
+            <p>Hi ${context.memberName},</p>
+            <p>We were unable to renew your subscription <strong>${context.planName}</strong>.</p>
+            <p><strong>Reason:</strong> ${context.reason || 'Payment failed'}</p>
+            <p>Please update your payment details to avoid service interruption.</p>
           </div>
-          
-          <div class="details">
-            <div class="detail-row">
-              <div class="detail-label">Subscription:</div>
-              <div class="detail-value">${subscriptionName}</div>
-            </div>
-            <div class="detail-row">
-              <div class="detail-label">Amount Due:</div>
-              <div class="detail-value">${amount}</div>
-            </div>
-            <div class="detail-row">
-              <div class="detail-label">Expiration Date:</div>
-              <div class="detail-value">${new Date(expiresAt).toLocaleDateString()}</div>
-            </div>
-          </div>
-          
-          <div class="action-box">
-            <p><strong>Action Required:</strong> Please update your payment method to avoid service interruption.</p>
-            <a href="${paymentUrl}" class="button">Update Payment Method</a>
-          </div>
-          
-          <p>If you've already updated your payment information, please ignore this message or contact our support team if you need assistance.</p>
-          
-          <p>Best regards,<br>The ${this.configService.get('app.name', 'ReeTrack')} Team</p>
+          <div class="footer"><p>This is an automated email from ReeTrack</p></div>
         </div>
-        
-        <div class="footer">
-          <p>This is an automated message. Please do not reply to this email.</p>
-          <p>If you have any questions, please contact our support team.</p>
-          <p> ${new Date().getFullYear()} ReeTrack. All rights reserved.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-  }
-
-  private subscriptionCancelledTemplate(context: any): string {
-    const { memberName, subscriptionName, expiresAt } = context;
-
-    return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Subscription Cancelled - ${subscriptionName}</title>
-      <style>
-        body { 
-          font-family: 'Segoe UI', Arial, sans-serif; 
-          line-height: 1.6; 
-          color: #333; 
-          margin: 0;
-          padding: 0;
-          background-color: #f5f5f5;
-        }
-        .container { 
-          max-width: 600px; 
-          margin: 0 auto; 
-          background: #ffffff;
-          border-radius: 8px;
-          overflow: hidden;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        .header { 
-          background: #6c757d;
-          color: white; 
-          padding: 25px 20px;
-          text-align: center;
-        }
-        .header h1 {
-          margin: 0;
-          font-size: 24px;
-        }
-        .content { 
-          padding: 30px;
-          color: #444;
-        }
-        .alert-box {
-          background-color: #f8f9fa;
-          border-left: 4px solid #6c757d;
-          padding: 15px;
-          margin: 20px 0;
-          border-radius: 0 4px 4px 0;
-        }
-        .details {
-          background: #f9f9f9;
-          padding: 15px;
-          border-radius: 4px;
-          margin: 20px 0;
-        }
-        .detail-row {
-          display: flex;
-          margin-bottom: 10px;
-          padding-bottom: 10px;
-          border-bottom: 1px solid #eee;
-        }
-        .detail-row:last-child {
-          border-bottom: none;
-          margin-bottom: 0;
-          padding-bottom: 0;
-        }
-        .detail-label {
-          font-weight: 600;
-          width: 40%;
-          color: #666;
-        }
-        .detail-value {
-          width: 60%;
-          font-weight: 500;
-        }
-        .footer {
-          background: #f5f5f5;
-          padding: 20px;
-          text-align: center;
-          font-size: 12px;
-          color: #777;
-          border-top: 1px solid #eee;
-        }
-        .action-box {
-          text-align: center;
-          margin: 25px 0;
-        }
-        .button {
-          display: inline-block;
-          padding: 12px 30px;
-          background-color: #007bff;
-          color: white !important;
-          text-decoration: none;
-          border-radius: 4px;
-          font-weight: bold;
-          margin: 20px 0;
-          text-align: center;
-        }
-        @media only screen and (max-width: 600px) {
-          .container {
-            width: 100% !important;
-            border-radius: 0;
-          }
-          .detail-row {
-            flex-direction: column;
-          }
-          .detail-label, .detail-value {
-            width: 100%;
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>Subscription Cancelled</h1>
-        </div>
-        
-        <div class="content">
-          <p>Hi ${memberName},</p>
-          
-          <div class="alert-box">
-            <p>Your subscription to <strong>${subscriptionName}</strong> has been cancelled as requested.</p>
-          </div>
-          
-          <div class="details">
-            <div class="detail-row">
-              <div class="detail-label">Subscription:</div>
-              <div class="detail-value">${subscriptionName}</div>
-            </div>
-            <div class="detail-row">
-              <div class="detail-label">Access Until:</div>
-              <div class="detail-value">${new Date(expiresAt).toLocaleDateString()}</div>
-            </div>
-            <div class="detail-row">
-              <div class="detail-label">Status:</div>
-              <div class="detail-value">Cancelled</div>
-            </div>
-          </div>
-          
-          <p>You will continue to have access to your subscription benefits until <strong>${new Date(expiresAt).toLocaleDateString()}</strong>.</p>
-          
-          <p>After this date, you won't be charged again and your access will be limited.</p>
-          
-          <div class="action-box">
-            <p>If you change your mind, you can reactivate your subscription anytime before the expiry date.</p>
-            <a href="#" class="button">Reactivate Subscription</a>
-          </div>
-          
-          <p>Thank you for being a valued member of our community. We hope to see you again soon!</p>
-          
-          <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
-          
-          <p>Best regards,<br>The ReeTrack Team</p>
-        </div>
-        
-        <div class="footer">
-          <p>This is an automated message. Please do not reply to this email.</p>
-          <p>If you have any questions, please contact our support team.</p>
-          <p>© ${new Date().getFullYear()} ReeTrack. All rights reserved.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+      </body>
+      </html>
+    `;
   }
 
   private invoiceCreatedTemplate(context: any): string {
@@ -1136,35 +741,25 @@ export class EmailService {
         <style>
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #673AB7; color: white; padding: 20px; text-align: center; }
+          .header { background: #3F51B5; color: white; padding: 20px; text-align: center; }
           .content { padding: 20px; background: #f9f9f9; }
           .details { background: white; padding: 15px; margin: 20px 0; border-radius: 5px; }
-          .button { display: inline-block; padding: 12px 24px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px; }
           .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
         </style>
       </head>
       <body>
         <div class="container">
-          <div class="header">
-            <h1>📄 New Invoice</h1>
-          </div>
+          <div class="header"><h1>Invoice Created</h1></div>
           <div class="content">
             <p>Hi ${context.memberName},</p>
-            <p>A new invoice has been generated for your subscription.</p>
-            
+            <p>A new invoice has been created for your account.</p>
             <div class="details">
-              <p><strong>Invoice Number:</strong> ${context.invoiceNumber}</p>
-              <p><strong>Amount Due:</strong> ${context.currency} ${context.amount}</p>
-              <p><strong>Due Date:</strong> ${new Date(context.dueDate).toLocaleDateString()}</p>
+              <p><strong>Invoice #:</strong> ${context.invoiceNumber}</p>
+              <p><strong>Amount:</strong> ${context.currency} ${context.amount}</p>
+              <p><strong>Due Date:</strong> ${context.dueDate}</p>
             </div>
-
-            <p style="text-align: center; margin: 30px 0;">
-              <a href="${context.paymentUrl}" class="button">Pay Now</a>
-            </p>
           </div>
-          <div class="footer">
-            <p>This is an automated email from ReeTrack</p>
-          </div>
+          <div class="footer"><p>This is an automated email from ReeTrack</p></div>
         </div>
       </body>
       </html>
@@ -1182,52 +777,31 @@ export class EmailService {
           .header { background: #f44336; color: white; padding: 20px; text-align: center; }
           .content { padding: 20px; background: #f9f9f9; }
           .details { background: white; padding: 15px; margin: 20px 0; border-radius: 5px; }
-          .button { display: inline-block; padding: 12px 24px; background: #4CAF50; color: white; text-decoration: none; border-radius: 5px; }
           .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
         </style>
       </head>
       <body>
         <div class="container">
-          <div class="header">
-            <h1>Invoice Overdue</h1>
-          </div>
+          <div class="header"><h1>Invoice Overdue</h1></div>
           <div class="content">
             <p>Hi ${context.memberName},</p>
-            <p>Your invoice is now <strong>${context.daysOverdue} days overdue</strong>.</p>
-            
+            <p>Your invoice is overdue. Please make payment as soon as possible.</p>
             <div class="details">
-              <p><strong>Invoice Number:</strong> ${context.invoiceNumber}</p>
+              <p><strong>Invoice #:</strong> ${context.invoiceNumber}</p>
               <p><strong>Amount Due:</strong> ${context.currency} ${context.amount}</p>
-              <p><strong>Original Due Date:</strong> ${new Date(context.dueDate).toLocaleDateString()}</p>
+              <p><strong>Due Date:</strong> ${context.dueDate}</p>
+              <p><strong>Days Overdue:</strong> ${context.daysOverdue}</p>
             </div>
-
-            <p>Please make payment as soon as possible to avoid service interruption.</p>
-            <p style="text-align: center; margin: 30px 0;">
-              <a href="${context.paymentUrl}" class="button">Pay Now</a>
-            </p>
           </div>
-          <div class="footer">
-            <p>This is an automated email from ReeTrack</p>
-          </div>
+          <div class="footer"><p>This is an automated email from ReeTrack</p></div>
         </div>
       </body>
       </html>
     `;
   }
 
-  private defaultTemplate(context: any): string {
-    return `
-      <!DOCTYPE html>
-      <html>
-      <body>
-        <p>${context.message || 'Notification from ReeTrack'}</p>
-      </body>
-      </html>
-    `;
-  }
-
   private otpEmailTemplate(context: any): string {
-    const { userName, otp, expirationMinutes = 10 } = context;
+    const { userName, otp, expirationMinutes } = context;
 
     return `
     <!DOCTYPE html>
@@ -1235,89 +809,22 @@ export class EmailService {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Verify Your Email Address</title>
+      <title>Email Verification</title>
       <style>
-        body {
-          font-family: 'Segoe UI', Arial, sans-serif;
-          line-height: 1.6;
-          color: #333333;
-          margin: 0;
-          padding: 0;
-          background-color: #f8fafc;
-        }
-        .container {
-          max-width: 600px;
-          margin: 40px auto;
-          background: #ffffff;
-          border-radius: 12px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          overflow: hidden;
-        }
-        .header {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 40px 30px;
-          text-align: center;
-        }
-        .header h1 {
-          margin: 0;
-          font-size: 28px;
-          font-weight: 600;
-        }
-        .content {
-          padding: 40px 30px;
-        }
-        .otp-container {
-          background: #f8fafc;
-          border: 2px dashed #cbd5e1;
-          border-radius: 8px;
-          padding: 30px;
-          text-align: center;
-          margin: 30px 0;
-        }
-        .otp-code {
-          font-size: 32px;
-          font-weight: bold;
-          letter-spacing: 8px;
-          color: #667eea;
-          font-family: 'Courier New', monospace;
-          margin: 0;
-        }
-        .info-box {
-          background: #eff6ff;
-          border-left: 4px solid #3b82f6;
-          padding: 20px;
-          margin: 25px 0;
-          border-radius: 0 8px 8px 0;
-        }
-        .footer {
-          background: #f8fafc;
-          padding: 30px;
-          text-align: center;
-          font-size: 14px;
-          color: #64748b;
-          border-top: 1px solid #e2e8f0;
-        }
-        .security-note {
-          background: #fef2f2;
-          border-left: 4px solid #ef4444;
-          padding: 15px;
-          margin: 20px 0;
-          border-radius: 0 8px 8px 0;
-          font-size: 13px;
-        }
+        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 0; background-color: #f8fafc; }
+        .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+        .content { padding: 40px 30px; }
+        .otp-container { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0; }
+        .otp-code { font-size: 48px; font-weight: 700; color: white; letter-spacing: 12px; margin: 0; font-family: 'Courier New', monospace; }
+        .info-box { background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .security-note { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 20px; margin: 25px 0; }
+        .footer { background: #f8fafc; padding: 30px; text-align: center; font-size: 14px; color: #64748b; border-top: 1px solid #e2e8f0; }
         @media only screen and (max-width: 600px) {
-          .container {
-            margin: 20px auto;
-            border-radius: 0;
-          }
-          .header, .content, .footer {
-            padding: 25px 20px;
-          }
-          .otp-code {
-            font-size: 24px;
-            letter-spacing: 6px;
-          }
+          .container { margin: 20px auto; border-radius: 0; }
+          .header, .content, .footer { padding: 25px 20px; }
+          .otp-code { font-size: 36px; letter-spacing: 8px; }
         }
       </style>
     </head>
@@ -1387,108 +894,23 @@ export class EmailService {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Email Verified Successfully</title>
       <style>
-        body {
-          font-family: 'Segoe UI', Arial, sans-serif;
-          line-height: 1.6;
-          color: #333333;
-          margin: 0;
-          padding: 0;
-          background-color: #f8fafc;
-        }
-        .container {
-          max-width: 600px;
-          margin: 40px auto;
-          background: #ffffff;
-          border-radius: 12px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          overflow: hidden;
-        }
-        .header {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-          color: white;
-          padding: 40px 30px;
-          text-align: center;
-        }
-        .header h1 {
-          margin: 0;
-          font-size: 28px;
-          font-weight: 600;
-        }
-        .content {
-          padding: 40px 30px;
-        }
-        .success-icon {
-          width: 80px;
-          height: 80px;
-          background: #10b981;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin: 0 auto 30px;
-          font-size: 40px;
-        }
-        .success-box {
-          background: #ecfdf5;
-          border: 1px solid #a7f3d0;
-          border-radius: 8px;
-          padding: 25px;
-          margin: 30px 0;
-          text-align: center;
-        }
-        .button {
-          display: inline-block;
-          padding: 15px 35px;
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-          color: white !important;
-          text-decoration: none;
-          border-radius: 8px;
-          font-weight: 600;
-          font-size: 16px;
-          margin: 25px 0;
-          transition: transform 0.2s ease;
-        }
-        .button:hover {
-          transform: translateY(-2px);
-        }
-        .next-steps {
-          background: #f1f5f9;
-          border-radius: 8px;
-          padding: 25px;
-          margin: 30px 0;
-        }
-        .next-steps h3 {
-          margin-top: 0;
-          color: #1e293b;
-        }
-        .next-steps ul {
-          margin: 15px 0;
-          padding-left: 20px;
-        }
-        .next-steps li {
-          margin-bottom: 10px;
-          color: #475569;
-        }
-        .footer {
-          background: #f8fafc;
-          padding: 30px;
-          text-align: center;
-          font-size: 14px;
-          color: #64748b;
-          border-top: 1px solid #e2e8f0;
-        }
+        body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 0; background-color: #f8fafc; }
+        .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 40px 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+        .content { padding: 40px 30px; }
+        .success-icon { width: 80px; height: 80px; background: #10b981; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px; font-size: 40px; }
+        .success-box { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 25px; margin: 30px 0; text-align: center; }
+        .button { display: inline-block; padding: 15px 35px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white !important; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 25px 0; }
+        .next-steps { background: #f1f5f9; border-radius: 8px; padding: 25px; margin: 30px 0; }
+        .next-steps h3 { margin-top: 0; color: #1e293b; }
+        .next-steps ul { margin: 15px 0; padding-left: 20px; }
+        .next-steps li { margin-bottom: 10px; color: #475569; }
+        .footer { background: #f8fafc; padding: 30px; text-align: center; font-size: 14px; color: #64748b; border-top: 1px solid #e2e8f0; }
         @media only screen and (max-width: 600px) {
-          .container {
-            margin: 20px auto;
-            border-radius: 0;
-          }
-          .header, .content, .footer {
-            padding: 25px 20px;
-          }
-          .button {
-            width: 100%;
-            box-sizing: border-box;
-          }
+          .container { margin: 20px auto; border-radius: 0; }
+          .header, .content, .footer { padding: 25px 20px; }
+          .button { width: 100%; box-sizing: border-box; }
         }
       </style>
     </head>
@@ -1499,9 +921,7 @@ export class EmailService {
         </div>
         
         <div class="content">
-          <div class="success-icon">
-            ✓
-          </div>
+          <div class="success-icon">✓</div>
           
           <h2 style="text-align: center; color: #1e293b; margin-bottom: 20px;">
             Welcome aboard, <strong>${userName || 'User'}</strong>!
@@ -1518,9 +938,7 @@ export class EmailService {
           </p>
           
           <div style="text-align: center;">
-            <a href="https://reetrack.com/auth/login" class="button">
-              Proceed to Dashboard
-            </a>
+            <a href="https://reetrack.com/auth/login" class="button">Proceed to Dashboard</a>
           </div>
           
           <div class="next-steps">
@@ -1544,6 +962,27 @@ export class EmailService {
       </div>
     </body>
     </html>
+    `;
+  }
+
+  private defaultTemplate(context: any): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <p>${context.message || 'You have a new notification from ReeTrack.'}</p>
+          <div class="footer"><p>This is an automated email from ReeTrack</p></div>
+        </div>
+      </body>
+      </html>
     `;
   }
 }
