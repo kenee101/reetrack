@@ -708,21 +708,31 @@ export class AuthService {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Invalidate any existing OTPs for this email
-    await this.emailVerificationRepository.update(
-      { email: sendVerificationDto.email, is_used: false },
-      { is_used: true },
-    );
-
-    // Create new email verification record
-    const emailVerification = this.emailVerificationRepository.create({
-      email: sendVerificationDto.email,
-      otp,
-      expires_at: expiresAt,
-      user,
+    // Check if there's a created email before in the repository
+    const existingAttempt = await this.emailVerificationRepository.findOne({
+      where: {
+        email: sendVerificationDto.email,
+        is_used: false,
+      },
+      order: { created_at: 'DESC' },
     });
 
-    await this.emailVerificationRepository.save(emailVerification);
+    if (existingAttempt) {
+      // Update the otp and expires_at
+      await this.emailVerificationRepository.update(
+        { email: sendVerificationDto.email },
+        { otp, expires_at: expiresAt },
+      );
+    } else {
+      // Create new email verification record
+      const emailVerification = this.emailVerificationRepository.create({
+        email: sendVerificationDto.email,
+        otp,
+        expires_at: expiresAt,
+        user,
+      });
+      await this.emailVerificationRepository.save(emailVerification);
+    }
 
     // Send verification email
     await this.notificationsService.sendEmailVerificationOTP({
@@ -761,6 +771,7 @@ export class AuthService {
         is_used: false,
         expires_at: MoreThan(new Date()),
       },
+      order: { created_at: 'DESC' },
     });
 
     if (!emailVerification) {
@@ -791,9 +802,11 @@ export class AuthService {
       throw new BadRequestException('Invalid verification code');
     }
 
-    // Mark OTP as used
-    emailVerification.is_used = true;
-    await this.emailVerificationRepository.save(emailVerification);
+    // Mark OTP as used and update user
+    await this.emailVerificationRepository.update(
+      { email: verifyEmailDto.email, otp: verifyEmailDto.otp },
+      { is_used: true },
+    );
 
     // Update user email verification status
     user.email_verified = true;
