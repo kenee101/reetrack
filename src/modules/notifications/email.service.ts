@@ -813,10 +813,10 @@ export class EmailService {
       <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 0; background-color: #f8fafc; }
         .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); overflow: hidden; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 30px; text-align: center; }
+        .header { background: linear-gradient(135deg, #0d7e0d 0%, #145214 100%); color: white; padding: 40px 30px; text-align: center; }
         .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
         .content { padding: 40px 30px; }
-        .otp-container { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0; }
+        .otp-container { background: linear-gradient(135deg, #0d7e0d 0%, #145214 100%); border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0; }
         .otp-code { font-size: 48px; font-weight: 700; color: white; letter-spacing: 12px; margin: 0; font-family: 'Courier New', monospace; }
         .info-box { background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 20px; margin: 25px 0; }
         .security-note { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; padding: 20px; margin: 25px 0; }
