@@ -12,18 +12,14 @@ export class EmailService {
     this.transporter = nodemailer.createTransport({
       host: this.configService.get('smtp.host'),
       port: this.configService.get('smtp.port'),
-      // secure: false, // true for 465, false for other ports
-      secure: this.configService.get('app.nodeEnv') === 'production', // true for 465, false for other ports
+      secure: this.configService.get('smtp.port') === 465, // true for port 465, false for others
       auth: {
         user: this.configService.get('smtp.user'),
         pass: this.configService.get('smtp.password'),
       },
       tls: {
-        rejectUnauthorized:
-          this.configService.get('app.nodeEnv') !== 'development',
-        ciphers: 'SSLv3',
+        rejectUnauthorized: false, // Allow self-signed certificates
       },
-      requireTLS: true, // Added
     });
   }
 
