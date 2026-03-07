@@ -311,7 +311,10 @@ export class SubscriptionsService {
     );
 
     // If activating an inactive subscription, update the dates
-    if (updateDto.status === 'active' && subscription.status !== 'active') {
+    if (
+      updateDto.status === SubscriptionStatus.ACTIVE &&
+      subscription.status !== SubscriptionStatus.ACTIVE
+    ) {
       // const now = new Date();
       subscription.started_at = now;
       subscription.expires_at = periodEnd;
@@ -803,10 +806,7 @@ export class SubscriptionsService {
     if (updateDto.status === SubscriptionStatus.CANCELLED) {
       subscription.status = SubscriptionStatus.CANCELLED;
       subscription.cancelled_at = new Date();
-    } else if (
-      updateDto.status === SubscriptionStatus.ACTIVE ||
-      updateDto.status === SubscriptionStatus.PENDING
-    ) {
+    } else if (updateDto.status === SubscriptionStatus.ACTIVE) {
       // Only allow reactivation if subscription is not expired
       if (subscription.status === SubscriptionStatus.EXPIRED) {
         throw new BadRequestException(

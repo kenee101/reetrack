@@ -47,9 +47,10 @@ export class Member {
 
   @Column({
     type: 'timestamp with time zone',
+    array: true,
     nullable: true,
   })
-  checked_in_at: Date;
+  checked_in_at: Date[];
 
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, any>;

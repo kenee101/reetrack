@@ -225,16 +225,25 @@ export class MembersService {
     }
 
     // Avoid incrementing count twice in a day
-    if (
-      member.checked_in_at &&
-      member.checked_in_at.toDateString() === new Date().toDateString()
-    ) {
+    const today = new Date().toDateString();
+    const hasCheckedInToday = member.checked_in_at?.some(
+      (date) => date.toDateString() === today,
+    );
+
+    if (hasCheckedInToday) {
       throw new BadRequestException('Member has already checked in today');
     }
 
     // Update check-in information
     member.check_in_count += 1;
-    member.checked_in_at = new Date();
+
+    // Initialize array if it doesn't exist
+    if (!member.checked_in_at) {
+      member.checked_in_at = [];
+    }
+
+    // Add new check-in date
+    member.checked_in_at.push(new Date());
 
     // Save the updated member
     await this.memberRepository.save(member);

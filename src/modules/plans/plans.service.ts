@@ -222,8 +222,19 @@ export class PlansService {
       }
     }
 
-    Object.assign(plan, updatePlanDto);
-    const updated = await this.memberPlanRepository.save(plan);
+    // Transform DTO data to match entity structure
+    const updateData: any = { ...updatePlanDto };
+    if (updatePlanDto.currency) {
+      updateData.currency = updatePlanDto.currency as Currency;
+    }
+
+    // Use repository.update for efficient database-level update
+    await this.memberPlanRepository.update({ id: planId }, updateData);
+
+    // Fetch the updated entity to return
+    const updated = await this.memberPlanRepository.findOne({
+      where: { id: planId },
+    });
 
     return {
       message: 'Plan updated successfully',

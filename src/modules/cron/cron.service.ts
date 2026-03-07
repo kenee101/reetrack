@@ -272,7 +272,7 @@ export class CronService {
 
     const overdueInvoices = await this.invoiceRepository.find({
       where: {
-        status: In([InvoiceStatus.PENDING, InvoiceStatus.FAILED]),
+        status: InvoiceStatus.FAILED,
         due_date: LessThan(now),
       },
       relations: ['billed_user'],

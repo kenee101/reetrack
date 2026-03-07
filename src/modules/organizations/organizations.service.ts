@@ -4,15 +4,22 @@ import {
   ForbiddenException,
   ConflictException,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Organization } from '../../database/entities/organization.entity';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { CreateOrganizationDto } from './dto/create-organization.dto';
+import {
+  NinVerificationDto,
+  NinVerificationResponseDto,
+} from './dto/nin-verification.dto';
 import { OrganizationUser } from '../../database/entities/organization-user.entity';
 import { OrgRole } from 'src/common/enums/enums';
 import { AuthService } from '../auth/auth.service';
 import { MemberPlan } from 'src/database/entities';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class OrganizationsService {
@@ -27,6 +34,7 @@ export class OrganizationsService {
     private memberPlanRepository: Repository<MemberPlan>,
 
     private authService: AuthService,
+    private configService: ConfigService,
   ) {}
 
   async getOrganization(slug: string) {
@@ -197,4 +205,170 @@ export class OrganizationsService {
       },
     };
   }
+
+  // async createOrganizationWithNin(
+  //   createOrganizationDto: CreateOrganizationDto,
+  //   userId: string,
+  // ) {
+  //   // First verify the NIN
+  //   const ninVerification = await this.verifyNin(
+  //     createOrganizationDto.ninVerification,
+  //   );
+
+  //   if (ninVerification.status !== 'success') {
+  //     throw new BadRequestException(
+  //       `NIN verification failed: ${ninVerification.message}`,
+  //     );
+  //   }
+
+  //   // Check if organization with same email already exists
+  //   const existingOrg = await this.organizationRepository.findOne({
+  //     where: { email: createOrganizationDto.organizationEmail },
+  //   });
+
+  //   if (existingOrg) {
+  //     throw new ConflictException(
+  //       'Organization with this email already exists',
+  //     );
+  //   }
+
+  //   // Create organization slug
+  //   const slug = await this.generateUniqueSlug(
+  //     createOrganizationDto.organizationName,
+  //   );
+
+  //   // Create the organization
+  //   const organization = this.organizationRepository.create({
+  //     name: createOrganizationDto.organizationName,
+  //     email: createOrganizationDto.organizationEmail,
+  //     slug,
+  //     address: createOrganizationDto.address,
+  //     website: createOrganizationDto.website,
+  //     phone: createOrganizationDto.phone,
+  //     description: createOrganizationDto.description,
+  //     // Store verified NIN data for audit purposes
+  //     metadata: {
+  //       ninVerified: true,
+  //       ninVerifiedAt: new Date(),
+  //       ninData: ninVerification.data,
+  //     },
+  //   });
+
+  //   const savedOrganization =
+  //     await this.organizationRepository.save(organization);
+
+  //   // Add user as organization owner
+  //   const orgUser = this.organizationUserRepository.create({
+  //     organization_id: savedOrganization.id,
+  //     user_id: userId,
+  //     role: OrgRole.ADMIN,
+  //   });
+
+  //   await this.organizationUserRepository.save(orgUser);
+
+  //   return {
+  //     message: 'Organization created successfully with verified NIN',
+  //     data: savedOrganization,
+  //   };
+  // }
+
+  async verifyNin(
+    ninVerificationDto: NinVerificationDto,
+    organizationId,
+  ): Promise<NinVerificationResponseDto> {
+    const { nin } = ninVerificationDto;
+    const isTest = this.configService.get('app.nodeEnv') === 'development';
+
+    try {
+      const koraConfig = this.configService.get('kora');
+      const secretKey = isTest
+        ? koraConfig.testSecretKey
+        : koraConfig.secretKey;
+
+      // console.log(secretKey);
+      if (!secretKey) {
+        throw new Error('Kora configuration missing');
+      }
+
+      // Kora NIN verification API endpoint
+      const url = 'https://api.korapay.com/merchant/api/v1/identities/ng/nin';
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: nin,
+          verification_consent: true,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new BadRequestException(
+          result.message || 'NIN verification failed',
+        );
+      }
+
+      const organization = await this.organizationRepository.findOne({
+        where: {
+          id: organizationId,
+        },
+      });
+
+      if (!organization) {
+        throw new NotFoundException('Organization not found');
+      }
+
+      await this.organizationRepository.update(
+        { id: organizationId },
+        {
+          metadata: {
+            ...organization.metadata,
+            ninVerified: true,
+            ninVerifiedAt: new Date(),
+            ninData: result.data,
+          },
+        },
+      );
+
+      return {
+        status: result.status,
+        message: result.message,
+        data: result.data,
+      };
+    } catch (error) {
+      if (error.message.includes('issue with your input')) {
+        throw new BadRequestException(error.message);
+      }
+      if (error.message.includes('not found')) {
+        throw new NotFoundException(error.message);
+      }
+      throw new BadRequestException(
+        error.message || 'NIN service is unavailable',
+      );
+    }
+  }
+
+  // private async generateUniqueSlug(name: string): Promise<string> {
+  //   let slug = name
+  //     .toLowerCase()
+  //     .replace(/[^a-z0-9]+/g, '-')
+  //     .replace(/^-+|-+$/g, '');
+
+  //   let counter = 2;
+  //   let finalSlug = slug;
+
+  //   while (
+  //     await this.organizationRepository.findOne({ where: { slug: finalSlug } })
+  //   ) {
+  //     finalSlug = `${slug}-${counter}`;
+  //     counter++;
+  //   }
+
+  //   return finalSlug;
+  // }
 }

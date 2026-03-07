@@ -35,6 +35,15 @@ export default () => ({
     testPublicKey: process.env.PAYSTACK_TEST_PUBLIC_KEY,
   },
 
+  kora: {
+    secretKey: process.env.KORA_SECRET_KEY,
+    publicKey: process.env.KORA_PUBLIC_KEY,
+    testSecretKey: process.env.KORA_TEST_SECRET_KEY,
+    testPublicKey: process.env.KORA_TEST_PUBLIC_KEY,
+    encryptionKey: process.env.KORA_ENCRYPTION_KEY,
+    testEncryptionKey: process.env.KORA_TEST_ENCRYPTION_KEY,
+  },
+
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY,
     testSecretKey: process.env.STRIPE_TEST_SECRET_KEY,
@@ -46,6 +55,7 @@ export default () => ({
   redis: {
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT as string, 10) || 6379,
+    password: process.env.REDIS_PASSWORD,
   },
 
   smtp: {

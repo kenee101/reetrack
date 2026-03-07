@@ -862,10 +862,6 @@ export class EmailService {
               <li>If you didn't request this, please ignore this email</li>
             </ul>
           </div>
-
-          <div style="margin: 2px 0">
-            <p>Go to https://reetrack.com/auth/verify-email to get OTP link</p>
-          </div>
           
           <p>Having trouble? <a href="mailto:reetrack.inc@gmail.com" style="color: #667eea; text-decoration: none;">Contact our support team</a></p>
         </div>

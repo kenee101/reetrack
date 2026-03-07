@@ -209,19 +209,14 @@ export class WebhooksService {
       if (payment.invoice.member_subscription) {
         const subscription = payment.invoice.member_subscription;
 
-        if (
-          subscription.status === SubscriptionStatus.EXPIRED ||
-          subscription.status === SubscriptionStatus.PENDING
-        ) {
-          subscription.status = SubscriptionStatus.ACTIVE;
-          await this.memberSubscriptionRepository.save(subscription);
-          await this.handleSubscriptionRenewal(
-            payment.invoice.member_subscription,
-          );
-          this.logger.log(
-            `Subscription ${subscription.id} activated after payment`,
-          );
-        }
+        subscription.status = SubscriptionStatus.ACTIVE;
+        await this.memberSubscriptionRepository.save(subscription);
+        await this.handleSubscriptionRenewal(
+          payment.invoice.member_subscription,
+        );
+        this.logger.log(
+          `Subscription ${subscription.id} activated after payment`,
+        );
       }
 
       // If invoice is linked to an organization subscription, ensure it's active
@@ -251,19 +246,14 @@ export class WebhooksService {
           }
         }
 
-        if (
-          subscription.status === SubscriptionStatus.EXPIRED ||
-          subscription.status === SubscriptionStatus.PENDING
-        ) {
-          subscription.status = SubscriptionStatus.ACTIVE;
-          await this.organizationSubscriptionRepository.save(subscription);
-          await this.handleOrganizationSubscriptionRenewal(
-            payment.invoice.organization_subscription,
-          );
-          this.logger.log(
-            `Organization subscription ${subscription.id} reactivated after payment`,
-          );
-        }
+        subscription.status = SubscriptionStatus.ACTIVE;
+        await this.organizationSubscriptionRepository.save(subscription);
+        await this.handleOrganizationSubscriptionRenewal(
+          payment.invoice.organization_subscription,
+        );
+        this.logger.log(
+          `Organization subscription ${subscription.id} reactivated after payment`,
+        );
       }
     }
 

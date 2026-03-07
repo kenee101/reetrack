@@ -3,6 +3,7 @@ import {
   Get,
   Put,
   Delete,
+  Post,
   Body,
   Param,
   UseGuards,
@@ -11,6 +12,11 @@ import {
 } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
+import { CreateOrganizationDto } from './dto/create-organization.dto';
+import {
+  NinVerificationDto,
+  NinVerificationResponseDto,
+} from './dto/nin-verification.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CurrentOrganization } from '../../common/decorators/organization.decorator';
@@ -39,6 +45,28 @@ export class OrganizationsController {
   async getOrganizationBySlug(@Param('slug') slug: string) {
     return this.organizationsService.getOrganization(slug);
   }
+
+  // @UseGuards(JwtAuthGuard)
+  // @ApiBearerAuth('JWT-auth')
+  // @ApiResponse({
+  //   status: 201,
+  //   description: 'Organization created successfully with verified NIN',
+  //   type: Organization,
+  // })
+  // @ApiResponse({ status: 400, description: 'Invalid NIN or organization data' })
+  // @ApiResponse({ status: 401, description: 'Unauthorized' })
+  // @ApiResponse({ status: 409, description: 'Organization already exists' })
+  // @ApiOperation({ summary: 'Create organization with NIN verification' })
+  // @Post()
+  // async createOrganizationWithNin(
+  //   @Body() createOrganizationDto: CreateOrganizationDto,
+  //   @CurrentUser() user: User,
+  // ) {
+  //   return this.organizationsService.createOrganizationWithNin(
+  //     createOrganizationDto,
+  //     user.id,
+  //   );
+  // }
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
@@ -149,5 +177,28 @@ export class OrganizationsController {
   async getStats(@CurrentOrganization() organizationId: string) {
     console.log('organizationId', organizationId);
     return this.organizationsService.getOrganizationStats(organizationId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiResponse({
+    status: 200,
+    description: 'NIN verification completed successfully',
+    type: NinVerificationResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid NIN' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 500, description: 'Verification service unavailable' })
+  @ApiOperation({ summary: 'Verify National Identification Number (NIN)' })
+  @Post('verify-nin')
+  async verifyNin(
+    @Body() ninVerificationDto: NinVerificationDto,
+    @CurrentUser() user: any,
+    @CurrentOrganization() organizationId: string,
+  ): Promise<NinVerificationResponseDto> {
+    return this.organizationsService.verifyNin(
+      ninVerificationDto,
+      organizationId,
+    );
   }
 }

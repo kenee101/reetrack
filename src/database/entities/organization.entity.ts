@@ -66,8 +66,8 @@ export class Organization {
   @Column({ type: 'text', nullable: true })
   bank: string | null;
 
-  @Column({ type: 'boolean', default: false })
-  is_verified: boolean;
+  @Column({ type: 'jsonb', default: {} })
+  metadata: object;
 
   @Column({ type: 'enum', enum: OrgPlans, default: OrgPlans.FREE })
   enterprise_plan: OrgPlans;
