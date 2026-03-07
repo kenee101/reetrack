@@ -279,6 +279,22 @@ export class OrganizationsService {
     const { nin } = ninVerificationDto;
     const isTest = this.configService.get('app.nodeEnv') === 'development';
 
+    const organization = await this.organizationRepository.findOne({
+      where: {
+        id: organizationId,
+      },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    if (organization.metadata?.ninVerified) {
+      throw new BadRequestException(
+        'NIN already verified for this organization',
+      );
+    }
+
     try {
       const koraConfig = this.configService.get('kora');
       const secretKey = isTest
@@ -311,16 +327,6 @@ export class OrganizationsService {
         throw new BadRequestException(
           result.message || 'NIN verification failed',
         );
-      }
-
-      const organization = await this.organizationRepository.findOne({
-        where: {
-          id: organizationId,
-        },
-      });
-
-      if (!organization) {
-        throw new NotFoundException('Organization not found');
       }
 
       await this.organizationRepository.update(

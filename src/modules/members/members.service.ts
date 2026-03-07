@@ -243,7 +243,7 @@ export class MembersService {
     }
 
     // Add new check-in date
-    member.checked_in_at.push(new Date());
+    member.checked_in_at.unshift(new Date());
 
     // Save the updated member
     await this.memberRepository.save(member);

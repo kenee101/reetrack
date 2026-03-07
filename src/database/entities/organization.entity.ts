@@ -16,6 +16,12 @@ import { MemberSubscription } from './member-subscription.entity';
 import { OrganizationPlan } from './organization-plan.entity';
 import { OrgPlans } from 'src/common/enums/enums';
 
+type metadata = {
+  ninVerified?: boolean;
+  ninVerifiedAt?: Date;
+  ninData?: object;
+};
+
 @Entity('organizations')
 export class Organization {
   @ApiProperty({
@@ -67,7 +73,7 @@ export class Organization {
   bank: string | null;
 
   @Column({ type: 'jsonb', default: {} })
-  metadata: object;
+  metadata: metadata;
 
   @Column({ type: 'enum', enum: OrgPlans, default: OrgPlans.FREE })
   enterprise_plan: OrgPlans;
