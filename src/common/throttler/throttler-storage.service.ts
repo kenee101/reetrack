@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ThrottlerStorage } from '@nestjs/throttler';
 import { ThrottlerStorageRecord } from '@nestjs/throttler/dist/throttler-storage-record.interface';
 import { Redis } from 'ioredis';
@@ -6,6 +6,7 @@ import { Redis } from 'ioredis';
 @Injectable()
 export class ThrottlerStorageService implements ThrottlerStorage {
   private redis: Redis;
+  private readonly logger = new Logger(ThrottlerStorageService.name);
 
   constructor() {
     this.redis = new Redis({
@@ -16,7 +17,12 @@ export class ThrottlerStorageService implements ThrottlerStorage {
 
     // Verify redis works
     this.redis.on('error', (err) => {
-      console.error('Redis error:', err);
+      this.logger.error('Redis error:', err);
+    });
+
+    // Log when connected
+    this.redis.on('connect', () => {
+      this.logger.log('Redis connected');
     });
   }
 
@@ -27,6 +33,7 @@ export class ThrottlerStorageService implements ThrottlerStorage {
     const results = await pipeline.exec();
 
     if (!results) {
+      this.logger.error('Redis pipeline failed');
       throw new Error('Redis pipeline failed');
     }
 

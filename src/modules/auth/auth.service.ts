@@ -565,6 +565,7 @@ export class AuthService {
         bank: orgUser.organization.bank,
         account_number: orgUser.organization.account_number,
         enterprise_plan: orgUser.organization.enterprise_plan,
+        metadata: orgUser.organization.metadata,
       })),
     };
   }
