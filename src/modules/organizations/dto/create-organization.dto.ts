@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsEmail, IsOptional } from 'class-validator';
-import { NinVerificationDto } from './nin-verification.dto';
+import { NinVerificationDto } from './bvn-verification.dto';
 
 export class CreateOrganizationDto {
   @ApiProperty({

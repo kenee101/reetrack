@@ -12,9 +12,9 @@ import { Organization } from '../../database/entities/organization.entity';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import {
-  NinVerificationDto,
-  NinVerificationResponseDto,
-} from './dto/nin-verification.dto';
+  BVNVerificationDto,
+  BVNVerificationResponseDto,
+} from './dto/bvn-verification.dto';
 import { OrganizationUser } from '../../database/entities/organization-user.entity';
 import { OrgRole } from 'src/common/enums/enums';
 import { AuthService } from '../auth/auth.service';
@@ -272,11 +272,11 @@ export class OrganizationsService {
   //   };
   // }
 
-  async verifyNin(
-    ninVerificationDto: NinVerificationDto,
+  async verifyBvn(
+    bvnVerificationDto: BVNVerificationDto,
     organizationId,
-  ): Promise<NinVerificationResponseDto> {
-    const { nin } = ninVerificationDto;
+  ): Promise<BVNVerificationResponseDto> {
+    const { bvn } = bvnVerificationDto;
     const isTest = this.configService.get('app.nodeEnv') === 'development';
 
     const organization = await this.organizationRepository.findOne({
@@ -289,9 +289,9 @@ export class OrganizationsService {
       throw new NotFoundException('Organization not found');
     }
 
-    if (organization.metadata?.ninVerified) {
+    if (organization.metadata?.bvnVerified) {
       throw new BadRequestException(
-        'NIN already verified for this organization',
+        'BVN already verified for this organization',
       );
     }
 
@@ -307,7 +307,7 @@ export class OrganizationsService {
       }
 
       // Kora NIN verification API endpoint
-      const url = 'https://api.korapay.com/merchant/api/v1/identities/ng/nin';
+      const url = 'https://api.korapay.com/merchant/api/v1/identities/ng/bvn';
 
       const response = await fetch(url, {
         method: 'POST',
@@ -316,7 +316,7 @@ export class OrganizationsService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          id: nin,
+          id: bvn,
           verification_consent: true,
         }),
       });
@@ -325,7 +325,7 @@ export class OrganizationsService {
 
       if (!response.ok) {
         throw new BadRequestException(
-          result.message || 'NIN verification failed',
+          result.message || 'BVN verification failed',
         );
       }
 
@@ -334,9 +334,9 @@ export class OrganizationsService {
         {
           metadata: {
             ...organization.metadata,
-            ninVerified: true,
-            ninVerifiedAt: new Date(),
-            ninData: result.data,
+            bvnVerified: true,
+            bvnVerifiedAt: new Date(),
+            bvnData: result.data,
           },
         },
       );
@@ -354,7 +354,7 @@ export class OrganizationsService {
         throw new NotFoundException(error.message);
       }
       throw new BadRequestException(
-        error.message || 'NIN service is unavailable',
+        error.message || 'BVN service is unavailable',
       );
     }
   }

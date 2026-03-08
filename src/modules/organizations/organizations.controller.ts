@@ -14,9 +14,9 @@ import { OrganizationsService } from './organizations.service';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import {
-  NinVerificationDto,
-  NinVerificationResponseDto,
-} from './dto/nin-verification.dto';
+  BVNVerificationDto,
+  BVNVerificationResponseDto,
+} from './dto/bvn-verification.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CurrentOrganization } from '../../common/decorators/organization.decorator';
@@ -183,21 +183,21 @@ export class OrganizationsController {
   @ApiBearerAuth('JWT-auth')
   @ApiResponse({
     status: 200,
-    description: 'NIN verification completed successfully',
-    type: NinVerificationResponseDto,
+    description: 'BVN verification completed successfully',
+    type: BVNVerificationResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Invalid NIN' })
+  @ApiResponse({ status: 400, description: 'Invalid BVN' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 500, description: 'Verification service unavailable' })
-  @ApiOperation({ summary: 'Verify National Identification Number (NIN)' })
-  @Post('verify-nin')
-  async verifyNin(
-    @Body() ninVerificationDto: NinVerificationDto,
+  @ApiOperation({ summary: 'Verify BVN' })
+  @Post('verify-bvn')
+  async verifyBvn(
+    @Body() bvnVerificationDto: BVNVerificationDto,
     @CurrentUser() user: any,
     @CurrentOrganization() organizationId: string,
-  ): Promise<NinVerificationResponseDto> {
-    return this.organizationsService.verifyNin(
-      ninVerificationDto,
+  ): Promise<BVNVerificationResponseDto> {
+    return this.organizationsService.verifyBvn(
+      bvnVerificationDto,
       organizationId,
     );
   }

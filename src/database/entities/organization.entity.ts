@@ -17,9 +17,9 @@ import { OrganizationPlan } from './organization-plan.entity';
 import { OrgPlans } from 'src/common/enums/enums';
 
 type metadata = {
-  ninVerified?: boolean;
-  ninVerifiedAt?: Date;
-  ninData?: object;
+  bvnVerified?: boolean;
+  bvnVerifiedAt?: Date;
+  bvnData?: object;
 };
 
 @Entity('organizations')

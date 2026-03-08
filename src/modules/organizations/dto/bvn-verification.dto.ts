@@ -1,17 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty } from 'class-validator';
 
-export class NinVerificationDto {
+export class BVNVerificationDto {
   @ApiProperty({
-    description: 'National Identification Number (NIN)',
+    description: 'Bank Verification Number (BVN)',
     example: '12345678901',
   })
   @IsString()
   @IsNotEmpty()
-  nin: string;
+  bvn: string;
 }
 
-export class NinVerificationResponseDto {
+export class BVNVerificationResponseDto {
   @ApiProperty({
     description: 'Verification status',
     example: 'success',
@@ -20,7 +20,7 @@ export class NinVerificationResponseDto {
 
   @ApiProperty({
     description: 'Verification message',
-    example: 'NIN verified successfully',
+    example: 'BVN verified successfully',
   })
   message: string;
 
