@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsEmail, IsOptional } from 'class-validator';
-import { NinVerificationDto } from './bvn-verification.dto';
+import { BVNVerificationDto } from './bvn-verification.dto';
 
 export class CreateOrganizationDto {
   @ApiProperty({
@@ -52,9 +52,9 @@ export class CreateOrganizationDto {
   description?: string;
 
   @ApiProperty({
-    description: 'Admin NIN verification details',
-    type: NinVerificationDto,
+    description: 'Admin BVN verification details',
+    type: BVNVerificationDto,
   })
   @IsNotEmpty()
-  ninVerification: NinVerificationDto;
+  bvnVerification: BVNVerificationDto;
 }
