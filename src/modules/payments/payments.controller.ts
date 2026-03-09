@@ -187,10 +187,7 @@ export class PaymentsController {
   @ApiResponse({ status: 200, description: 'Payment retrieved successfully' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
   @Get(':paymentId')
-  findOne(
-    @CurrentOrganization() organizationId: string,
-    @Param('paymentId') paymentId: string,
-  ) {
-    return this.paymentsService.findOne(organizationId, paymentId);
+  findOne(@CurrentUser() user: any, @Param('paymentId') paymentId: string) {
+    return this.paymentsService.findOne(user.id, paymentId);
   }
 }

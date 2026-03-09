@@ -404,7 +404,8 @@ export class PaymentsService {
       throw new NotFoundException('Organization not found');
     }
 
-    const limit = PLAN_FEATURES[organization.enterprise_plan].transactionFeePercent;
+    const limit =
+      PLAN_FEATURES[organization.enterprise_plan].transactionFeePercent;
     const subaccountDto = {
       ...createSubaccountDto,
       percentage_charge: limit,
@@ -592,11 +593,11 @@ export class PaymentsService {
     };
   }
 
-  async findOne(organizationId: string, paymentId: string) {
+  async findOne(userId: string, paymentId: string) {
     const payment = await this.paymentRepository.findOne({
       where: {
         id: paymentId,
-        payer_org_id: organizationId,
+        payer_user_id: userId,
       },
       relations: [
         'payer_user',
