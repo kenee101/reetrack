@@ -48,6 +48,7 @@ export class MembersService {
         organizationId,
       });
 
+    let totalData = await queryBuilder.getMany();
     let memberData: Member[];
     if (paginationDto.status === 'all') {
       memberData = await queryBuilder.getMany();
@@ -58,7 +59,7 @@ export class MembersService {
 
     return {
       message: 'Members retrieved successfully',
-      data: { ...paginate(memberData, memberData.length, page, limit) },
+      data: { ...paginate(memberData, totalData.length, page, limit) },
     };
   }
 
