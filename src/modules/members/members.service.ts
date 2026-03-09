@@ -49,10 +49,10 @@ export class MembersService {
       });
 
     let memberData: Member[];
-    if (paginationDto.status !== 'all') {
-      queryBuilder.skip(skip).take(limit);
+    if (paginationDto.status === 'all') {
       memberData = await queryBuilder.getMany();
     } else {
+      queryBuilder.skip(skip).take(limit);
       memberData = await queryBuilder.getMany();
     }
 
