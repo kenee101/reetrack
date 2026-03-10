@@ -154,6 +154,10 @@ export class AuthService {
       throw new NotFoundException('Organization not found');
     }
 
+    if (!organization.metadata.verified) {
+      throw new BadRequestException('Organization is not fully verified');
+    }
+
     // Check if user email exists
     let user = await this.userRepository.findOne({
       where: { email: memberRegisterDto.email },

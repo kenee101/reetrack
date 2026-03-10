@@ -276,7 +276,7 @@ export class OrganizationsService {
     bvnVerificationDto: BVNVerificationDto,
     organizationId,
   ): Promise<BVNVerificationResponseDto> {
-    const { bvn } = bvnVerificationDto;
+    const { bvn, first_name, last_name, date_of_birth } = bvnVerificationDto;
     const isTest = this.configService.get('app.nodeEnv') === 'development';
 
     const organization = await this.organizationRepository.findOne({
@@ -289,7 +289,7 @@ export class OrganizationsService {
       throw new NotFoundException('Organization not found');
     }
 
-    if (organization.metadata?.bvnVerified) {
+    if (organization.metadata?.verified) {
       throw new BadRequestException(
         'BVN already verified for this organization',
       );
@@ -318,6 +318,7 @@ export class OrganizationsService {
         body: JSON.stringify({
           id: bvn,
           verification_consent: true,
+          validation: { first_name, last_name, date_of_birth },
         }),
       });
 
@@ -334,9 +335,9 @@ export class OrganizationsService {
         {
           metadata: {
             ...organization.metadata,
-            bvnVerified: true,
-            bvnVerifiedAt: new Date(),
-            bvnData: result.data,
+            verified: true,
+            verifiedAt: new Date(),
+            data: result.data,
           },
         },
       );

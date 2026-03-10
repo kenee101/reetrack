@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsDate } from 'class-validator';
 
 export class BVNVerificationDto {
   @ApiProperty({
@@ -9,6 +9,30 @@ export class BVNVerificationDto {
   @IsString()
   @IsNotEmpty()
   bvn: string;
+
+  @ApiProperty({
+    description: 'First name',
+    example: 'James',
+  })
+  @IsString()
+  @IsNotEmpty()
+  first_name: string;
+
+  @ApiProperty({
+    description: 'Last name',
+    example: 'Doe',
+  })
+  @IsString()
+  @IsNotEmpty()
+  last_name: string;
+
+  @ApiProperty({
+    description: 'Date of birth (YYYY-MM-DD)',
+    example: '1990-01-01',
+  })
+  @IsNotEmpty()
+  @IsDate()
+  date_of_birth: Date;
 }
 
 export class BVNVerificationResponseDto {
