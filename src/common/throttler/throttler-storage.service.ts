@@ -9,20 +9,29 @@ export class ThrottlerStorageService implements ThrottlerStorage {
   private readonly logger = new Logger(ThrottlerStorageService.name);
 
   constructor() {
-    this.redis = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379', 10),
-      password: process.env.REDIS_PASSWORD,
-    });
+    const redisUrl = process.env.REDIS_URL;
 
-    // Verify redis works
+    if (redisUrl) {
+      // Upstash / Railway — ioredis accepts the full URL directly
+      this.redis = new Redis(redisUrl, {
+        tls: redisUrl.startsWith('rediss://') ? {} : undefined,
+        maxRetriesPerRequest: 3,
+      });
+    } else {
+      // Local fallback
+      this.redis = new Redis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+        maxRetriesPerRequest: 3,
+      });
+    }
+
     this.redis.on('error', (err) => {
       this.logger.error('Redis error:', err);
     });
 
-    // Log when connected
     this.redis.on('connect', () => {
-      this.logger.log('Redis connected');
+      this.logger.log('✅ Redis connected');
     });
   }
 
