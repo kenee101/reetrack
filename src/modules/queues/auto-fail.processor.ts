@@ -62,6 +62,8 @@ export class AutoFailProcessor {
           `Invoice ${id} automatically marked as cancelled after timeout`,
         );
 
+        return { success: true, id }; // explicit return
+
         // TODO: Send notification about auto-failure
         // await this.notificationsService.sendInvoiceAutoCancelledNotification(...);
       } else {
@@ -69,6 +71,7 @@ export class AutoFailProcessor {
           `Invoice ${id} already has status ${invoice.status}, skipping auto-cancel`,
         );
       }
+      return { skipped: true, status: invoice.status }; // explicit return
     } catch (error) {
       this.logger.error(
         `Failed to process auto-cancel for invoice ${id}: ${error.message}`,
@@ -112,6 +115,8 @@ export class AutoFailProcessor {
           `Subscription ${id} automatically marked as cancelled after timeout`,
         );
 
+        return { success: true, id }; // explicit return
+
         // TODO: Send notification about auto-failure
         // await this.notificationsService.sendSubscriptionAutoCancelledNotification(...);
       } else {
@@ -119,6 +124,7 @@ export class AutoFailProcessor {
           `Subscription ${id} already has status ${subscription.status}, skipping auto-cancel`,
         );
       }
+      return { skipped: true, status: subscription.status }; // explicit return
     } catch (error) {
       this.logger.error(
         `Failed to process auto-cancel for subscription ${id}: ${error.message}`,
@@ -155,10 +161,7 @@ export class AutoFailProcessor {
         await this.paymentRepository.save(payment);
 
         // Also cancel the associated invoice if it's still pending
-        if (
-          payment.invoice &&
-          payment.invoice.status === InvoiceStatus.PENDING
-        ) {
+        if (payment.invoice?.status === InvoiceStatus.PENDING) {
           payment.invoice.status = InvoiceStatus.CANCELLED;
           await this.invoiceRepository.save(payment.invoice);
 
@@ -171,6 +174,8 @@ export class AutoFailProcessor {
           );
         }
 
+        return { success: true, id }; // explicit return
+
         // TODO: Send notification about auto-failure
         // await this.notificationsService.sendPaymentAutoFailedNotification(...);
       } else {
@@ -178,6 +183,7 @@ export class AutoFailProcessor {
           `Payment ${id} already has status ${payment.status}, skipping auto-fail`,
         );
       }
+      return { skipped: true, status: payment.status }; // explicit return
     } catch (error) {
       this.logger.error(
         `Failed to process auto-fail for payment ${id}: ${error.message}`,
