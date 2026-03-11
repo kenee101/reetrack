@@ -38,6 +38,7 @@ import {
 import { OrganizationPlan } from 'src/database/entities';
 import { PaystackService } from '../payments/paystack.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AutoFailQueueService } from '../queues/auto-fail-queue.service';
 
 @Injectable()
 export class SubscriptionsService {
@@ -70,6 +71,7 @@ export class SubscriptionsService {
 
     private paystackService: PaystackService,
     private notificationsService: NotificationsService,
+    private autoFailQueueService: AutoFailQueueService,
     // private subscriptionGateway: SubscriptionGateway,
   ) {}
 
@@ -146,8 +148,15 @@ export class SubscriptionsService {
         const savedSubscription: MemberSubscription =
           await transactionalEntityManager.save(subscription);
 
-        console.log('Saved subscription ID:', savedSubscription.id);
-        console.log('Saved subscription:', savedSubscription);
+        // console.log('Saved subscription ID:', savedSubscription.id);
+        // console.log('Saved subscription:', savedSubscription);
+
+        // Schedule auto-cancel job if subscription is pending
+        if (savedSubscription.status === SubscriptionStatus.PENDING) {
+          await this.autoFailQueueService.scheduleSubscriptionAutoCancel(
+            savedSubscription.id,
+          );
+        }
 
         // Generate invoice for subscription within the same transaction
         const invoice = this.invoiceRepository.create({
@@ -171,6 +180,13 @@ export class SubscriptionsService {
         });
 
         const savedInvoice = await transactionalEntityManager.save(invoice);
+
+        // Schedule auto-cancel job if invoice is pending
+        if (savedInvoice.status === InvoiceStatus.PENDING) {
+          await this.autoFailQueueService.scheduleInvoiceAutoCancel(
+            savedInvoice.id,
+          );
+        }
 
         // Send WebSocket notification
         // this.subscriptionGateway.notifyMemberSubscriptionEvent(
@@ -345,40 +361,6 @@ export class SubscriptionsService {
     // Start a transaction
     return this.memberSubscriptionRepository.manager.transaction(
       async (transactionalEntityManager) => {
-        // Get the current subscription
-        // const currentSubscription = await transactionalEntityManager.findOne(
-        //   MemberSubscription,
-        //   {
-        //     where: {
-        //       id: subscriptionId,
-        //       organization_id: organizationId,
-        //     },
-        //     relations: ['plan'],
-        //   },
-        // );
-
-        // if (!currentSubscription) {
-        //   throw new NotFoundException('Subscription not found');
-        // }
-
-        // if (currentSubscription.status === SubscriptionStatus.ACTIVE) {
-        //   throw new ForbiddenException(
-        //     'Cannot change plan for an active subscription',
-        //   );
-        // }
-
-        // Get the new plan
-        // const newPlan = await transactionalEntityManager.findOne(MemberPlan, {
-        //   where: {
-        //     id: changePlanDto.newPlanId,
-        //     organization_id: organizationId,
-        //   },
-        // });
-
-        // if (!newPlan) {
-        //   throw new NotFoundException('New plan not found');
-        // }
-
         // Calculate period dates
         const now = new Date();
         const periodEnd = this.calculatePeriodEnd(
@@ -418,6 +400,13 @@ export class SubscriptionsService {
         const createdSubscription =
           await transactionalEntityManager.save(newSubscription);
 
+        // Schedule auto-cancel job if subscription is pending
+        if (createdSubscription.status === SubscriptionStatus.PENDING) {
+          await this.autoFailQueueService.scheduleSubscriptionAutoCancel(
+            createdSubscription.id,
+          );
+        }
+
         // Cancel the old subscription
         currentSubscription.status = SubscriptionStatus.CANCELLED;
         currentSubscription.cancelled_at = new Date();
@@ -450,6 +439,13 @@ export class SubscriptionsService {
         });
 
         const savedInvoice = await transactionalEntityManager.save(invoice);
+
+        // Schedule auto-cancel job if invoice is pending
+        if (savedInvoice.status === InvoiceStatus.PENDING) {
+          await this.autoFailQueueService.scheduleInvoiceAutoCancel(
+            savedInvoice.id,
+          );
+        }
 
         return {
           message: 'Subscription plan changed successfully',
@@ -485,12 +481,12 @@ export class SubscriptionsService {
     }
 
     // Get organization user
-    const orgUser = await this.organizationUserRepository.findOne({
-      where: {
-        organization_id: subscription.organization_id,
-        user_id: subscription.member.user_id,
-      },
-    });
+    // const orgUser = await this.organizationUserRepository.findOne({
+    //   where: {
+    //     organization_id: subscription.organization_id,
+    //     user_id: subscription.member.user_id,
+    //   },
+    // });
 
     // Deactivate Paystack authorization
     // if (orgUser?.paystack_authorization_code) {
@@ -511,6 +507,11 @@ export class SubscriptionsService {
     subscription.cancelled_at = new Date();
 
     await this.memberSubscriptionRepository.save(subscription);
+
+    // Remove scheduled auto-cancel job since subscription is cancelled
+    await this.autoFailQueueService.removeScheduledSubscriptionCancel(
+      subscriptionId,
+    );
 
     // Send cancellation email
     await this.notificationsService.sendSubscriptionCancelledNotification({
@@ -548,7 +549,7 @@ export class SubscriptionsService {
 
     if (!paidInvoice) {
       throw new BadRequestException(
-        'No paid invoice found for this subscription',
+        'No successful payment found for this subscription',
       );
     }
 
@@ -615,7 +616,7 @@ export class SubscriptionsService {
     };
   }
 
-  // Helper method to check and expire subscriptions (should be run by a cron job)
+  // Helper method to check and expire member subscriptions (should be run by a cron job)
   async checkExpiredSubscriptions() {
     const now = new Date();
 
@@ -629,6 +630,29 @@ export class SubscriptionsService {
     for (const subscription of expiredSubscriptions) {
       subscription.status = SubscriptionStatus.EXPIRED;
       await this.memberSubscriptionRepository.save(subscription);
+    }
+
+    return {
+      message: `${expiredSubscriptions.length} subscriptions expired`,
+      count: expiredSubscriptions.length,
+    };
+  }
+
+  // Helper method to check and expire organization subscriptions (should be run by a cron job)
+  async checkExpiredOrgSubscriptions() {
+    const now = new Date();
+
+    const expiredSubscriptions =
+      await this.organizationSubscriptionRepository.find({
+        where: {
+          status: SubscriptionStatus.ACTIVE,
+          expires_at: LessThan(now),
+        },
+      });
+
+    for (const subscription of expiredSubscriptions) {
+      subscription.status = SubscriptionStatus.EXPIRED;
+      await this.organizationSubscriptionRepository.save(subscription);
     }
 
     return {
@@ -690,9 +714,6 @@ export class SubscriptionsService {
         .getOne();
 
     if (existingOrgSubscription) {
-      // throw new BadRequestException(
-      //   'Organization already has an active subscription',
-      // );
       return await this.changeOrgSubscriptionPlan(
         organizationId,
         existingOrgSubscription,
@@ -723,6 +744,13 @@ export class SubscriptionsService {
         const savedSubscription =
           await transactionalEntityManager.save(subscription);
 
+        // Schedule auto-cancel job if subscription is pending
+        if (savedSubscription.status === SubscriptionStatus.PENDING) {
+          await this.autoFailQueueService.scheduleSubscriptionAutoCancel(
+            savedSubscription.id,
+          );
+        }
+
         // 7. Create initial invoice
         const invoice = this.invoiceRepository.create({
           issuer_org_id: organizationId,
@@ -742,6 +770,13 @@ export class SubscriptionsService {
           },
         });
         const savedInvoice = await this.invoiceRepository.save(invoice);
+
+        // Schedule auto-cancel job if invoice is pending
+        if (savedInvoice.status === InvoiceStatus.PENDING) {
+          await this.autoFailQueueService.scheduleInvoiceAutoCancel(
+            savedInvoice.id,
+          );
+        }
 
         // 9. Send confirmation email
         // await this.notificationsService.sendSubscriptionCreatedNotification({
@@ -852,6 +887,13 @@ export class SubscriptionsService {
         const createdSubscription =
           await transactionalEntityManager.save(newSubscription);
 
+        // Schedule auto-cancel job if subscription is pending
+        if (createdSubscription.status === SubscriptionStatus.PENDING) {
+          await this.autoFailQueueService.scheduleSubscriptionAutoCancel(
+            createdSubscription.id,
+          );
+        }
+
         // Cancel the old subscription
         subscription.status = SubscriptionStatus.CANCELLED;
         subscription.cancelled_at = new Date();
@@ -877,6 +919,13 @@ export class SubscriptionsService {
         });
 
         const savedInvoice = await transactionalEntityManager.save(invoice);
+
+        // Schedule auto-cancel job if invoice is pending
+        if (savedInvoice.status === InvoiceStatus.PENDING) {
+          await this.autoFailQueueService.scheduleInvoiceAutoCancel(
+            savedInvoice.id,
+          );
+        }
 
         return {
           message: 'Organization plan changed successfully',
@@ -916,15 +965,15 @@ export class SubscriptionsService {
     }
 
     // Get organization user
-    const orgUser = await this.organizationUserRepository.findOne({
-      where: {
-        organization_id: organizationId,
-        user_id: userId,
-      },
-      relations: ['user'],
-    });
+    // const orgUser = await this.organizationUserRepository.findOne({
+    //   where: {
+    //     organization_id: organizationId,
+    //     user_id: userId,
+    //   },
+    //   relations: ['user'],
+    // });
 
-    if (!orgUser) throw new NotFoundException('User not found');
+    // if (!orgUser) throw new NotFoundException('User not found');
 
     // Deactivate Paystack authorization
     // if (orgUser?.paystack_authorization_code) {

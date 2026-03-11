@@ -6,6 +6,7 @@ import { Invoice } from '../../database/entities/invoice.entity';
 import { Member } from '../../database/entities/member.entity';
 import { MemberSubscription } from '../../database/entities/member-subscription.entity';
 import { Organization, OrganizationSubscription } from 'src/database/entities';
+import { QueuesModule } from '../queues/queues.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { Organization, OrganizationSubscription } from 'src/database/entities';
       Organization,
       OrganizationSubscription,
     ]),
+    QueuesModule,
   ],
   controllers: [InvoicesController],
   providers: [InvoicesService],

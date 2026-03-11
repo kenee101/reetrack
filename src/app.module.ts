@@ -20,6 +20,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { WebsocketModule } from './websocket/websocket.module';
+import { QueuesModule } from './modules/queues/queues.module';
 // import { StripeModule } from './modules/stripe/stripe.module';
 
 @Module({
@@ -61,6 +62,7 @@ import { WebsocketModule } from './websocket/websocket.module';
     CronModule,
     AnalyticsModule,
     WebsocketModule,
+    QueuesModule,
   ],
   providers: [
     {

@@ -84,13 +84,13 @@ export class OrganizationsController {
     @CurrentUser() user: User,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const tokens = await this.organizationsService.selectOrganization(
+    const result = await this.organizationsService.selectOrganization(
       user.id,
       organizationId,
     );
-    const { accessToken, refreshToken } = tokens;
+    const { accessToken, refreshToken } = result.tokens;
     this.authService.setAuthCookies(response, { refreshToken });
-    return { accessToken };
+    return { accessToken, verified: result.verified };
   }
 
   @UseGuards(JwtAuthGuard)

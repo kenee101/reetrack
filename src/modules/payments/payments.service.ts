@@ -34,6 +34,7 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { generateReference } from 'src/common/utils/generatePaymentReference';
 import { CreateSubaccountDto } from './dto/create-subaccount.dto';
 import { PLAN_FEATURES, PlanTier } from 'src/lib/plans';
+import { AutoFailQueueService } from '../queues/auto-fail-queue.service';
 
 @Injectable()
 export class PaymentsService {
@@ -66,6 +67,8 @@ export class PaymentsService {
 
     @Inject(forwardRef(() => NotificationsService))
     private notificationsService: NotificationsService,
+
+    private autoFailQueueService: AutoFailQueueService,
   ) {}
 
   async initializePayment(
@@ -111,6 +114,11 @@ export class PaymentsService {
     });
 
     const savedPayment = await this.paymentRepository.save(payment);
+
+    // Schedule auto-fail job if payment is pending
+    if (savedPayment.status === PaymentStatus.PENDING) {
+      await this.autoFailQueueService.schedulePaymentAutoFail(savedPayment.id);
+    }
 
     const organization = await this.organizationRepository.findOne({
       where: {
@@ -209,6 +217,11 @@ export class PaymentsService {
     });
 
     const savedPayment = await this.paymentRepository.save(payment);
+
+    // Schedule auto-fail job if payment is pending
+    if (savedPayment.status === PaymentStatus.PENDING) {
+      await this.autoFailQueueService.schedulePaymentAutoFail(savedPayment.id);
+    }
 
     // Initialize Paystack transaction
     const amountInSubUnit = this.paystackService.convertToSubUnit(
@@ -375,6 +388,9 @@ export class PaymentsService {
 
     await this.paymentRepository.save(payment);
 
+    // Remove scheduled auto-fail job since payment is now verified
+    await this.autoFailQueueService.removeScheduledPaymentFail(payment.id);
+
     return {
       message:
         payment.status === PaymentStatus.SUCCESS
@@ -509,6 +525,11 @@ export class PaymentsService {
 
     await this.paymentRepository.save(payment);
 
+    // Schedule auto-fail job if payment is pending
+    if (payment.status === PaymentStatus.PENDING) {
+      await this.autoFailQueueService.schedulePaymentAutoFail(payment.id);
+    }
+
     // Charge the saved card
     try {
       const amountInSubUnit = this.paystackService.convertToSubUnit(
@@ -539,6 +560,9 @@ export class PaymentsService {
           this.invoiceRepository.save(invoice),
         ]);
 
+        // Remove scheduled auto-fail job since payment is now successful
+        await this.autoFailQueueService.removeScheduledPaymentFail(payment.id);
+
         return { success: true, payment, reference };
       } else {
         payment.status = PaymentStatus.FAILED;
@@ -547,6 +571,9 @@ export class PaymentsService {
           failure_reason: result.data.gateway_response || 'Payment declined',
         };
         await this.paymentRepository.save(payment);
+
+        // Remove scheduled auto-fail job since payment is now failed
+        await this.autoFailQueueService.removeScheduledPaymentFail(payment.id);
 
         return { success: false, payment, reference };
       }
@@ -557,6 +584,9 @@ export class PaymentsService {
         failure_reason: error.message,
       };
       await this.paymentRepository.save(payment);
+
+      // Remove scheduled auto-fail job since payment failed
+      await this.autoFailQueueService.removeScheduledPaymentFail(payment.id);
 
       throw error;
     }

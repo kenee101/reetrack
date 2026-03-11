@@ -13,6 +13,7 @@ import {
   OrganizationSubscription,
   OrganizationUser,
 } from 'src/database/entities';
+import { QueuesModule } from '../queues/queues.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import {
       OrganizationSubscription,
     ]),
     forwardRef(() => NotificationsModule),
+    QueuesModule,
   ],
   controllers: [PaymentsController],
   providers: [PaymentsService, PaystackService],

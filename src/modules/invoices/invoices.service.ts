@@ -17,6 +17,7 @@ import { InvoiceBilledType } from 'src/common/enums/enums';
 import { Organization, OrganizationSubscription } from 'src/database/entities';
 import { CreateOrganizationInvoiceDto } from './dto/create-organization-invoice.dto';
 import { InvoicePaginationDto } from './invoices.controller';
+import { AutoFailQueueService } from '../queues/auto-fail-queue.service';
 
 @Injectable()
 export class InvoicesService {
@@ -37,6 +38,8 @@ export class InvoicesService {
 
     @InjectRepository(OrganizationSubscription)
     private organizationSubscriptionRepository: Repository<OrganizationSubscription>,
+
+    private autoFailQueueService: AutoFailQueueService,
   ) {}
 
   async createMemberInvoice(
@@ -86,6 +89,11 @@ export class InvoicesService {
     });
 
     const saved = await this.invoiceRepository.save(invoice);
+
+    // Schedule auto-fail job if invoice is pending
+    if (saved.status === InvoiceStatus.PENDING) {
+      await this.autoFailQueueService.scheduleInvoiceAutoCancel(saved.id);
+    }
 
     return {
       message: 'Member invoice created successfully',
@@ -182,6 +190,9 @@ export class InvoicesService {
     invoice.paid_at = new Date();
     await this.invoiceRepository.save(invoice);
 
+    // Remove scheduled auto-fail job since invoice is now paid
+    await this.autoFailQueueService.removeScheduledInvoiceCancel(invoiceId);
+
     return {
       message: 'Member invoice marked as paid',
       data: invoice,
@@ -206,6 +217,9 @@ export class InvoicesService {
 
     invoice.status = InvoiceStatus.CANCELLED;
     await this.invoiceRepository.save(invoice);
+
+    // Remove scheduled auto-fail job since invoice is cancelled
+    await this.autoFailQueueService.removeScheduledInvoiceCancel(invoiceId);
 
     return {
       message: 'Member invoice cancelled successfully',
@@ -344,7 +358,16 @@ export class InvoicesService {
         ...createInvoiceDto.metadata,
       },
     });
-    return this.invoiceRepository.save(invoice);
+    const savedInvoice = await this.invoiceRepository.save(invoice);
+
+    // Schedule auto-fail job if invoice is pending
+    if (savedInvoice.status === InvoiceStatus.PENDING) {
+      await this.autoFailQueueService.scheduleInvoiceAutoCancel(
+        savedInvoice.id,
+      );
+    }
+
+    return savedInvoice;
   }
 
   /**

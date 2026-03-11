@@ -69,13 +69,19 @@ export class OrganizationsService {
     }
 
     // Generate new tokens for this organization
-    return this.authService.generateTokens(
-      orgUser.user,
-      orgUser.organization_id,
-      orgUser.role,
-      ipAddress,
-      userAgent,
-    );
+    return {
+      tokens: await this.authService.generateTokens(
+        orgUser.user,
+        orgUser.organization_id,
+        orgUser.role,
+        ipAddress,
+        userAgent,
+      ),
+      verified:
+        Object.keys(orgUser.organization.metadata).length !== 0
+          ? orgUser.organization.metadata.verified
+          : false,
+    };
   }
 
   async updateOrganization(

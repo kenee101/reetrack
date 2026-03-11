@@ -12,6 +12,7 @@ import { PaymentsModule } from '../payments/payments.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { Organization, OrganizationUser } from 'src/database/entities';
 import { WebsocketModule } from '../../websocket/websocket.module';
+import { QueuesModule } from '../queues/queues.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { WebsocketModule } from '../../websocket/websocket.module';
     PaymentsModule,
     NotificationsModule,
     WebsocketModule,
+    QueuesModule,
   ],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService],

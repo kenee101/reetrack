@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsDate } from 'class-validator';
+import { IsString, IsNotEmpty } from 'class-validator';
 
 export class BVNVerificationDto {
   @ApiProperty({
@@ -31,8 +31,8 @@ export class BVNVerificationDto {
     example: '1990-01-01',
   })
   @IsNotEmpty()
-  @IsDate()
-  date_of_birth: Date;
+  @IsString()
+  date_of_birth: string;
 }
 
 export class BVNVerificationResponseDto {

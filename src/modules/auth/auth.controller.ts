@@ -387,7 +387,7 @@ export class AuthController {
     const { message } = result;
     return {
       message,
-      refresh_token: newRefreshToken,
+      access_token: accessToken,
     };
   }
 
