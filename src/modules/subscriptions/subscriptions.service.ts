@@ -769,7 +769,7 @@ export class SubscriptionsService {
             interval_count: plan.interval_count,
           },
         });
-        const savedInvoice = await this.invoiceRepository.save(invoice);
+        const savedInvoice = await transactionalEntityManager.save(invoice);
 
         // Schedule auto-cancel job if invoice is pending
         if (savedInvoice.status === InvoiceStatus.PENDING) {
