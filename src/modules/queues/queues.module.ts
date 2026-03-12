@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bull';
+import { BullModule } from '@nestjs/bullmq';
 import { AutoFailProcessor } from './auto-fail.processor';
 import { AutoFailQueueService } from './auto-fail-queue.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -8,7 +8,7 @@ import { Payment } from 'src/database/entities/payment.entity';
 import { MemberSubscription } from 'src/database/entities';
 import { OrganizationSubscription } from 'src/database/entities';
 
-const getRedisConfig = () => {
+export const getRedisConfig = () => {
   const redisUrl = process.env.RAILWAY_REDIS_URL;
 
   if (redisUrl) {
@@ -33,17 +33,7 @@ const getRedisConfig = () => {
   imports: [
     BullModule.registerQueue({
       name: 'auto-fail',
-      redis: getRedisConfig(),
-      settings: {
-        stalledInterval: 60000, // Check for stalled jobs every 60s (default: 5s — too aggressive for Upstash)
-        maxStalledCount: 3, // Allow job to stall 3 times before failing (default: 1)
-        lockDuration: 300000, // Lock job for 5 minutes (default: 30s — too short for Upstash latency)
-        lockRenewTime: 150000, // Renew lock halfway through lockDuration
-      },
-      defaultJobOptions: {
-        removeOnComplete: 10, // Keep recent successes
-        removeOnFail: 5, // Keep fewer failures (less critical)
-      },
+      connection: getRedisConfig(),
     }),
     TypeOrmModule.forFeature([
       Invoice,

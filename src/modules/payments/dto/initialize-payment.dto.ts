@@ -6,6 +6,7 @@ export class InitializePaymentDto {
   @IsUUID()
   invoiceId: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsObject()
   metadata?: Record<string, any>;

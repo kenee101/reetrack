@@ -1,20 +1,19 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
-import { InjectQueue, getQueueToken } from '@nestjs/bull';
-import { type Queue } from 'bull';
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { type Queue } from 'bullmq';
 
 @Injectable()
 export class AutoFailQueueService {
   private readonly logger = new Logger(AutoFailQueueService.name);
   private readonly AUTO_FAIL_DELAY_MS = 10 * 60 * 1000; // 10 minutes
+  // private readonly AUTO_FAIL_DELAY_MS = 2 * 60 * 1000; // 2 minutes
 
-  constructor(
-    @Inject(getQueueToken('auto-fail')) private autoFailQueue: Queue,
-  ) {}
+  constructor(@InjectQueue('auto-fail') private autoFailQueue: Queue) {}
 
   async scheduleInvoiceAutoCancel(invoiceId: string) {
     try {
       this.logger.log(
-        `Scheduling auto-cancel for invoice ${invoiceId} in 10 minutes`,
+        `Scheduling auto-cancel for invoice ${invoiceId} in 2 minutes`,
       );
 
       await this.autoFailQueue.add(
@@ -113,7 +112,7 @@ export class AutoFailQueueService {
 
   async removeScheduledInvoiceCancel(invoiceId: string) {
     try {
-      const jobs = await this.autoFailQueue.getWaiting();
+      const jobs = await this.autoFailQueue.getDelayed();
       const jobsToRemove = jobs.filter(
         (job) => job.data.type === 'invoice' && job.data.id === invoiceId,
       );
@@ -131,7 +130,7 @@ export class AutoFailQueueService {
 
   async removeScheduledPaymentFail(paymentId: string) {
     try {
-      const jobs = await this.autoFailQueue.getWaiting();
+      const jobs = await this.autoFailQueue.getDelayed();
       const jobsToRemove = jobs.filter(
         (job) => job.data.type === 'payment' && job.data.id === paymentId,
       );
@@ -149,7 +148,7 @@ export class AutoFailQueueService {
 
   async removeScheduledSubscriptionCancel(subscriptionId: string) {
     try {
-      const jobs = await this.autoFailQueue.getWaiting();
+      const jobs = await this.autoFailQueue.getDelayed();
       const jobsToRemove = jobs.filter(
         (job) =>
           job.data.type === 'subscription' && job.data.id === subscriptionId,
@@ -170,7 +169,7 @@ export class AutoFailQueueService {
 
   async removeScheduledOrgSubscriptionCancel(subscriptionId: string) {
     try {
-      const jobs = await this.autoFailQueue.getWaiting();
+      const jobs = await this.autoFailQueue.getDelayed();
       const jobsToRemove = jobs.filter(
         (job) =>
           job.data.type === 'org-subscription' &&

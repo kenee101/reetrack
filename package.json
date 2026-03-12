@@ -24,7 +24,12 @@
     "migration:create": "npm run typeorm migration:create -- src/database/migrations/\"$npm_config_name\""
   },
   "dependencies": {
+    "@bull-board/api": "^6.20.5",
+    "@bull-board/express": "^6.20.5",
+    "@bull-board/nestjs": "^6.20.5",
+    "@bull-board/ui": "^6.20.5",
     "@nestjs/bull": "^11.0.4",
+    "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.1",

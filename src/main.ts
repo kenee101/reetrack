@@ -9,6 +9,11 @@ import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import * as http from 'http';
 import { SocketIoAdapter } from './websocket/socket-io.adapter';
+import { ExpressAdapter } from '@bull-board/express';
+import { createBullBoard } from '@bull-board/api';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
+import { Queue } from 'bullmq';
+import { getRedisConfig } from './modules/queues/queues.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -17,6 +22,23 @@ async function bootstrap() {
   });
 
   const configService = app.get(ConfigService);
+
+  // Create Bull board
+  const serverAdapter = new ExpressAdapter();
+  serverAdapter.setBasePath('/admin/queues');
+
+  const autoFailQueue = new Queue('auto-fail', {
+    connection: getRedisConfig(),
+  });
+
+  createBullBoard({
+    queues: [new BullMQAdapter(autoFailQueue)],
+    serverAdapter,
+  });
+
+  // Mount the bull-board router on the Express instance
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.use('/admin/queues', serverAdapter.getRouter());
 
   // Security: Helmet
   app.use(helmet());

@@ -20,7 +20,8 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { CustomThrottlerGuard } from './common/guards/throttle.guard';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { WebsocketModule } from './websocket/websocket.module';
-import { QueuesModule } from './modules/queues/queues.module';
+import { getRedisConfig, QueuesModule } from './modules/queues/queues.module';
+import { BullModule } from '@nestjs/bullmq';
 // import { StripeModule } from './modules/stripe/stripe.module';
 
 @Module({
@@ -63,6 +64,9 @@ import { QueuesModule } from './modules/queues/queues.module';
     AnalyticsModule,
     WebsocketModule,
     QueuesModule,
+    BullModule.forRoot({
+      connection: getRedisConfig(),
+    }),
   ],
   providers: [
     {

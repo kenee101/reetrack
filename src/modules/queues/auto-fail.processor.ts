@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Processor, Process } from '@nestjs/bull';
-import { type Job } from 'bull';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Job } from 'bullmq';
 import { Invoice } from '../../database/entities/invoice.entity';
 import { Payment } from '../../database/entities/payment.entity';
 import { MemberSubscription } from '../../database/entities/member-subscription.entity';
@@ -13,14 +13,14 @@ import {
 } from '../../common/enums/enums';
 import { OrganizationSubscription } from 'src/database/entities';
 
-export interface AutoFailJobData {
-  type: 'invoice' | 'payment' | 'subscription' | 'org-subscription';
-  id: string;
-}
+// export interface AutoFailJobData {
+//   type: 'invoice' | 'payment' | 'subscription' | 'org-subscription';
+//   id: string;
+// }
 
 @Injectable()
 @Processor('auto-fail')
-export class AutoFailProcessor {
+export class AutoFailProcessor extends WorkerHost implements OnModuleInit {
   private readonly logger = new Logger(AutoFailProcessor.name);
 
   constructor(
@@ -35,10 +35,42 @@ export class AutoFailProcessor {
 
     @InjectRepository(OrganizationSubscription)
     private organizationSubscriptionRepository: Repository<OrganizationSubscription>,
-  ) {}
+  ) {
+    super();
+  }
 
-  @Process('cancel-invoice')
-  async handleCancelInvoice(job: Job<AutoFailJobData>) {
+  async onModuleInit() {
+    this.logger.log('🚀 AutoFailProcessor initialized successfully!');
+  }
+
+  @OnWorkerEvent('completed')
+  onCompleted(job: Job) {
+    this.logger.log(`✅ Job ${job.id} completed`);
+  }
+
+  @OnWorkerEvent('failed')
+  onFailed(job: Job, err: Error) {
+    this.logger.error(`❌ Job ${job.id} failed: ${err.message}`);
+  }
+
+  // Job handlers based on job name
+  async process(job: Job<any, any, string>): Promise<any> {
+    this.logger.log(`🔥 Processing job: ${job.name}`);
+
+    switch (job.name) {
+      case 'cancel-invoice':
+        return await this.handleCancelInvoice(job);
+      case 'cancel-subscription':
+        return await this.handleCancelSubscription(job);
+      case 'fail-payment':
+        return await this.handleFailPayment(job);
+      default:
+        this.logger.warn(`Unknown job type: ${job.name}`);
+        return { skipped: true, reason: 'Unknown job type' };
+    }
+  }
+
+  async handleCancelInvoice(job: Job) {
     const { id } = job.data;
     this.logger.log(`Processing auto-cancel job for invoice ${id}`);
 
@@ -80,8 +112,7 @@ export class AutoFailProcessor {
     }
   }
 
-  @Process('cancel-subscription')
-  async handleCancelSubscription(job: Job<AutoFailJobData>) {
+  async handleCancelSubscription(job: Job) {
     const { id, type } = job.data;
     this.logger.log(`Processing auto-cancel job for subscription ${id}`);
 
@@ -105,6 +136,7 @@ export class AutoFailProcessor {
       // Only cancel if still pending (might have been paid/failed manually)
       if (subscription.status === SubscriptionStatus.PENDING) {
         subscription.status = SubscriptionStatus.CANCELLED;
+        subscription.cancelled_at = new Date();
         if (type === 'subscription') {
           await this.memberSubscriptionRepository.save(subscription);
         } else {
@@ -133,8 +165,7 @@ export class AutoFailProcessor {
     }
   }
 
-  @Process('fail-payment')
-  async handleFailPayment(job: Job<AutoFailJobData>) {
+  async handleFailPayment(job: Job) {
     const { id } = job.data;
     this.logger.log(`Processing auto-fail job for payment ${id}`);
 
