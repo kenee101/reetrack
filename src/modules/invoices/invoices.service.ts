@@ -119,7 +119,7 @@ export class InvoicesService {
 
     const [invoices, total] = await this.invoiceRepository.findAndCount({
       where: whereCondition,
-      relations: ['billed_user', 'member_subscription', 'payments'],
+      relations: ['member_subscription.plan', 'payments'],
       order: { created_at: 'DESC' },
       skip,
       take: limit,
@@ -137,7 +137,7 @@ export class InvoicesService {
         id: invoiceId,
         billed_user_id: userId,
       },
-      relations: ['billed_user', 'member_subscription', 'payments'],
+      relations: ['member_subscription.plan', 'payments'],
     });
 
     if (!invoice) {
