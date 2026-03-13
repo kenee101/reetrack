@@ -746,7 +746,7 @@ export class SubscriptionsService {
 
         // Schedule auto-cancel job if subscription is pending
         if (savedSubscription.status === SubscriptionStatus.PENDING) {
-          await this.autoFailQueueService.scheduleSubscriptionAutoCancel(
+          await this.autoFailQueueService.scheduleOrgSubscriptionAutoCancel(
             savedSubscription.id,
           );
         }

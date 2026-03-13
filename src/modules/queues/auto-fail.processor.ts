@@ -122,7 +122,7 @@ export class AutoFailProcessor extends WorkerHost implements OnModuleInit {
         subscription = await this.memberSubscriptionRepository.findOne({
           where: { id },
         });
-      } else if (type === 'org-subscription') {
+      } else {
         subscription = await this.organizationSubscriptionRepository.findOne({
           where: { id },
         });
