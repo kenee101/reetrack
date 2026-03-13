@@ -66,7 +66,6 @@ export class InvoicesController {
     @Query()
     paginationDto: InvoicePaginationDto,
   ) {
-    console.log('statInvoicePagination.status', paginationDto.status);
     return this.invoicesService.findAllMemberInvoices(user.id, paginationDto);
   }
 

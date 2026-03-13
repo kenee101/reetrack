@@ -34,6 +34,10 @@ export const getRedisConfig = () => {
     BullModule.registerQueue({
       name: 'auto-fail',
       connection: getRedisConfig(),
+      defaultJobOptions: {
+        removeOnComplete: true, // Auto-remove completed jobs
+        removeOnFail: 5, // Keep fewer failures (less critical)
+      },
     }),
     TypeOrmModule.forFeature([
       Invoice,
