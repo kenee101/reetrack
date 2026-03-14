@@ -199,8 +199,8 @@ export class WebhooksService {
       if (payment.invoice.member_subscription) {
         const subscription = payment.invoice.member_subscription;
 
-        subscription.status = SubscriptionStatus.ACTIVE;
-        await this.memberSubscriptionRepository.save(subscription);
+        // subscription.status = SubscriptionStatus.ACTIVE;
+        // await this.memberSubscriptionRepository.save(subscription);
         await this.handleSubscriptionRenewal(
           payment.invoice.member_subscription,
         );
@@ -236,8 +236,8 @@ export class WebhooksService {
           }
         }
 
-        subscription.status = SubscriptionStatus.ACTIVE;
-        await this.organizationSubscriptionRepository.save(subscription);
+        // subscription.status = SubscriptionStatus.ACTIVE;
+        // await this.organizationSubscriptionRepository.save(subscription);
         await this.handleOrganizationSubscriptionRenewal(
           payment.invoice.organization_subscription,
         );
@@ -277,27 +277,24 @@ export class WebhooksService {
 
     if (!sub) return;
 
-    // Reactivate if expired
-    if (sub.status === SubscriptionStatus.EXPIRED) {
-      sub.status = SubscriptionStatus.ACTIVE;
+    sub.status = SubscriptionStatus.ACTIVE;
 
-      // Extend subscription period
-      const now = new Date();
-      const plan = sub.plan;
+    // Extend subscription period
+    const now = new Date();
+    const plan = sub.plan;
 
-      const periodEnd = this.calculatePeriodEnd(
-        now,
-        plan.interval,
-        plan.interval_count,
-      );
+    const periodEnd = this.calculatePeriodEnd(
+      now,
+      plan.interval,
+      plan.interval_count,
+    );
 
-      sub.started_at = new Date(now);
-      sub.expires_at = periodEnd;
+    sub.started_at = new Date(now);
+    sub.expires_at = periodEnd;
 
-      await this.memberSubscriptionRepository.save(sub);
+    await this.memberSubscriptionRepository.save(sub);
 
-      this.logger.log(`Subscription ${sub.id} renewed and extended`);
-    }
+    this.logger.log(`Subscription ${sub.id} renewed and extended`);
   }
 
   /**
@@ -315,27 +312,24 @@ export class WebhooksService {
 
     if (!sub) return;
 
-    // Reactivate if expired
-    if (sub.status === SubscriptionStatus.EXPIRED) {
-      sub.status = SubscriptionStatus.ACTIVE;
+    sub.status = SubscriptionStatus.ACTIVE;
 
-      // Extend subscription period
-      const now = new Date();
-      const plan = sub.plan;
+    // Extend subscription period
+    const now = new Date();
+    const plan = sub.plan;
 
-      const periodEnd = this.calculatePeriodEnd(
-        now,
-        plan.interval,
-        plan.interval_count,
-      );
+    const periodEnd = this.calculatePeriodEnd(
+      now,
+      plan.interval,
+      plan.interval_count,
+    );
 
-      sub.started_at = new Date(now);
-      sub.expires_at = periodEnd;
+    sub.started_at = new Date(now);
+    sub.expires_at = periodEnd;
 
-      await this.organizationSubscriptionRepository.save(sub);
+    await this.organizationSubscriptionRepository.save(sub);
 
-      this.logger.log(`Subscription ${sub.id} renewed and extended`);
-    }
+    this.logger.log(`Subscription ${sub.id} renewed and extended`);
   }
 
   private async handleChargeFailed(data: any) {
