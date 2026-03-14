@@ -755,7 +755,7 @@ export class SubscriptionsService {
         const invoice = this.invoiceRepository.create({
           issuer_org_id: organizationId,
           organization_subscription_id: savedSubscription.id,
-          invoice_number: `INV-${Date.now()}-${organizationId.substring(0, 8)}`,
+          invoice_number: generateInvoiceNumber(organizationId),
           billed_type: InvoiceBilledType.ORGANIZATION,
           billed_user_id: userId,
           payment_provider: PaymentProvider.PAYSTACK,

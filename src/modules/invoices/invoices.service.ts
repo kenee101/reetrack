@@ -309,6 +309,9 @@ export class InvoicesService {
         'organization_subscription',
         'organization_subscription.plan',
       ],
+      order: {
+        created_at: 'DESC',
+      },
     });
     if (!invoice) {
       return null;

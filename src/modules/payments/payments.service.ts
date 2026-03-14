@@ -93,7 +93,8 @@ export class PaymentsService {
     }
 
     // Generate unique payment reference
-    const reference = `REE-${Date.now()}-${invoice.id.substring(0, 8)}`;
+    // const reference = `REE-${Date.now()}-${invoice.id.substring(0, 8)}`;
+    const reference = generateReference();
 
     // Create payment record
     const payment = this.paymentRepository.create({
@@ -196,7 +197,8 @@ export class PaymentsService {
     }
 
     // Generate unique payment reference
-    const reference = `REE-${Date.now()}-${invoice.id.substring(0, 8)}`;
+    // const reference = `REE-${Date.now()}-${invoice.id.substring(0, 8)}`;
+    const reference = generateReference();
 
     // Create payment record
     const payment = this.paymentRepository.create({

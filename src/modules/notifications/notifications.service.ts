@@ -234,13 +234,12 @@ export class NotificationsService {
       context: data,
     });
 
-    // Send SMS if phone is provided
-    if (data.phone) {
-      await this.smsService.sendSMS({
-        to: data.phone,
-        message: this.smsService.getSMSTemplate('payment_success', data),
-      });
-    }
+    // if (data.phone) {
+    //   await this.smsService.sendSMS({
+    //     to: data.phone,
+    //     message: this.smsService.getSMSTemplate('payment_success', data),
+    //   });
+    // }
 
     this.logger.log(`Payment success notification sent to ${data.email}`);
     this.stats.emailsSent++;
@@ -273,12 +272,12 @@ export class NotificationsService {
       // html: emailHtml,
     });
 
-    if (data.phone) {
-      await this.smsService.sendSMS({
-        to: data.phone,
-        message: this.smsService.getSMSTemplate('payment_failed', data),
-      });
-    }
+    // if (data.phone) {
+    //   await this.smsService.sendSMS({
+    //     to: data.phone,
+    //     message: this.smsService.getSMSTemplate('payment_failed', data),
+    //   });
+    // }
 
     this.logger.log(`Payment failed notification sent to ${data.email}`);
     this.stats.emailsSent++;
@@ -352,12 +351,12 @@ export class NotificationsService {
       context: data,
     });
 
-    if (data.phone) {
-      await this.smsService.sendSMS({
-        to: data.phone,
-        message: this.smsService.getSMSTemplate('subscription_expiring', data),
-      });
-    }
+    // if (data.phone) {
+    //   await this.smsService.sendSMS({
+    //     to: data.phone,
+    //     message: this.smsService.getSMSTemplate('subscription_expiring', data),
+    //   });
+    // }
 
     this.logger.log(`Subscription expiring notification sent to ${data.email}`);
     this.stats.emailsSent++;
@@ -377,12 +376,12 @@ export class NotificationsService {
       context: data,
     });
 
-    if (data.phone) {
-      await this.smsService.sendSMS({
-        to: data.phone,
-        message: this.smsService.getSMSTemplate('subscription_expired', data),
-      });
-    }
+    // if (data.phone) {
+    //   await this.smsService.sendSMS({
+    //     to: data.phone,
+    //     message: this.smsService.getSMSTemplate('subscription_expired', data),
+    //   });
+    // }
 
     this.logger.log(`Subscription expired notification sent to ${data.email}`);
     this.stats.emailsSent++;
@@ -484,12 +483,12 @@ export class NotificationsService {
       context: data,
     });
 
-    if (data.phone) {
-      await this.smsService.sendSMS({
-        to: data.phone,
-        message: this.smsService.getSMSTemplate('invoice_overdue', data),
-      });
-    }
+    // if (data.phone) {
+    //   await this.smsService.sendSMS({
+    //     to: data.phone,
+    //     message: this.smsService.getSMSTemplate('invoice_overdue', data),
+    //   });
+    // }
 
     this.logger.log(`Invoice overdue notification sent to ${data.email}`);
     this.stats.emailsSent++;

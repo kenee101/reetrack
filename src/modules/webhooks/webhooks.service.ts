@@ -88,16 +88,6 @@ export class WebhooksService {
           this.processChargeFailedAsync(event.data);
           break;
 
-        case 'invoice.create':
-          this.logger.log('Invoice created on Paystack');
-          console.log(event.data);
-          break;
-
-        case 'invoice.update':
-          this.logger.log('Invoice updated on Paystack');
-          console.log(event.data);
-          break;
-
         case 'transfer.success':
           this.logger.log('Transfer successful');
           console.log(event.data);
