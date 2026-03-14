@@ -148,17 +148,18 @@ export class WebhooksService {
 
     // Update payment status
     payment.status = PaymentStatus.SUCCESS;
+    payment.method = data.channel;
     payment.metadata = {
       ...payment.metadata,
       webhook_data: data,
-      paid_at: data.paid_at,
-      channel: data.channel,
-      card_details: {
-        last4: data.authorization?.last4,
-        bank: data.authorization?.bank,
-        brand: data.authorization?.brand,
-        authorization_code: data.authorization?.authorization_code,
-      },
+      // paid_at: data.paid_at,
+      // channel: data.channel,
+      // card_details: {
+      //   last4: data.authorization?.last4,
+      //   bank: data.authorization?.bank,
+      //   brand: data.authorization?.brand,
+      //   authorization_code: data.authorization?.authorization_code,
+      // },
     };
 
     await this.paymentRepository.save(payment);
@@ -347,11 +348,12 @@ export class WebhooksService {
 
     // Update payment status
     payment.status = PaymentStatus.FAILED;
+    payment.method = data.channel;
     payment.metadata = {
       ...payment.metadata,
       webhook_data: data,
-      failure_reason: data.gateway_response,
-      failed_at: new Date().toISOString(),
+      // failure_reason: data.gateway_response,
+      // failed_at: new Date().toISOString(),
     };
 
     await this.paymentRepository.save(payment);

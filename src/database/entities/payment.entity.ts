@@ -58,6 +58,9 @@ export class Payment {
   @Column({ type: 'text', unique: true, nullable: true })
   provider_reference: string;
 
+  @Column({ type: 'text', nullable: true })
+  method: string;
+
   @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
   status: PaymentStatus;
 
