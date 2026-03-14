@@ -295,29 +295,37 @@ export class InvoicesService {
   }
 
   /**
-   * Get a single organization invoices
+   * Get an organization invoices
    */
   async getOrganizationInvoices(
     organizationId: string,
-  ): Promise<Invoice[] | null> {
-    const invoice = await this.invoiceRepository.find({
-      where: {
-        issuer_org_id: organizationId,
-        billed_type: InvoiceBilledType.ORGANIZATION,
-      },
-      relations: [
-        'organization_subscription',
-        'organization_subscription.plan',
-      ],
+    paginationDto: InvoicePaginationDto,
+  ) {
+    const { page = 1, limit = 10 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const whereCondition: any = {
+      issuer_org_id: organizationId,
+      billed_type: InvoiceBilledType.ORGANIZATION,
+    };
+
+    if (paginationDto.status) {
+      whereCondition.status = paginationDto.status;
+    }
+    const [invoices, total] = await this.invoiceRepository.findAndCount({
+      where: whereCondition,
+      relations: ['organization_subscription.plan'],
       order: {
         created_at: 'DESC',
       },
+      skip,
+      take: limit,
     });
-    if (!invoice) {
-      return null;
-    }
 
-    return invoice;
+    return {
+      message: 'All organization invoices retrieved successfully',
+      data: { ...paginate(invoices, total, page, limit) },
+    };
   }
 
   /**

@@ -485,14 +485,15 @@ export class AuthService {
     // Access token cookie (short-lived)
     // response.cookie('access_token', tokens.accessToken, {
     //   httpOnly: true,
-    //   secure: process.env.NODE_ENV === 'production',
+    //   secure: this.configService.get(app.nodeEnv) === 'production',
     //   sameSite: 'lax',
     //   maxAge: 15 * 60 * 1000, // 15 minutes
     // });
     // Refresh token cookie (longer-lived)
     response.cookie('refresh_token', tokens.refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      // secure: this.configService.get(app.nodeEnv) === 'production',
+      secure: false,
       sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       // path: '/api/v1/auth/refresh', // Only sent to refresh endpoint

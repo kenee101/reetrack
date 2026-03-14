@@ -58,7 +58,7 @@ export class InvoicesController {
   }
 
   @Get('member')
-  @ApiOperation({ summary: 'Get all member invoices' })
+  @ApiOperation({ summary: 'Get a member invoices' })
   @ApiResponse({ status: 200, description: 'List of member invoices' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   findAll(
@@ -164,15 +164,21 @@ export class InvoicesController {
   }
 
   @Get('/organization')
-  @ApiOperation({ summary: 'Get all organization invoices' })
+  @ApiOperation({ summary: 'Get an organization invoices' })
   @ApiResponse({
     status: 200,
     description: 'Invoices retrieved successfully',
     type: [Invoice],
   })
   @ApiResponse({ status: 404, description: 'Invoices not found' })
-  async getInvoices(@CurrentOrganization() organizationId: string) {
-    return this.invoicesService.getOrganizationInvoices(organizationId);
+  async getInvoices(
+    @CurrentOrganization() organizationId: string,
+    @Query() paginationDto: InvoicePaginationDto,
+  ) {
+    return this.invoicesService.getOrganizationInvoices(
+      organizationId,
+      paginationDto,
+    );
   }
 
   @Post('/organization')
